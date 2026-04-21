@@ -15,7 +15,7 @@ import { Footer } from './components/Footer';
 import { CookieBanner } from './components/CookieBanner';
 import { StaticPage } from './pages/StaticPage';
 
-import { Profile } from './pages/Profile';
+import Profile from './pages/Profile';
 
 type PageType = 'store' | 'product' | 'checkout' | 'admin' | 'tracking' | 'profile' | 'terms' | 'privacy' | 'shipping' | 'returns' | 'faq';
 
@@ -24,6 +24,7 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<PageType>('store');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const [trackedOrderId, setTrackedOrderId] = useState<string | null>(null);
+
 
   const navigateToProduct = (id: string) => {
     setSelectedProductId(id);
@@ -106,16 +107,22 @@ function AppContent() {
         {currentPage === 'checkout' && (
           <Checkout 
             onBack={() => navigateTo('store')} 
-            onSuccessRedirect={() => navigateTo('profile')}
+            onSuccessRedirect={(orderId) => {
+              if (orderId) navigateToTracking(orderId);
+              else navigateTo('profile');
+            }}
           />
         )}
         
         {currentPage === 'profile' && (
-           <Profile onOrderClick={navigateToTracking} />
+           <Profile onBack={() => navigateTo('store')} onOrderClick={navigateToTracking} />
         )}
 
         {currentPage === 'tracking' && (
-          <OrderTracking initialOrderId={trackedOrderId || undefined} />
+          <OrderTracking 
+            initialOrderId={trackedOrderId || undefined} 
+            onMyOrdersClick={() => navigateTo('profile')}
+          />
         )}
 
         {currentPage === 'terms' && (

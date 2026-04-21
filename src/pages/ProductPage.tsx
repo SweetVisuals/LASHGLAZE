@@ -34,7 +34,9 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
   const isLimitedTimeActive = !!(product.limitedTimeEnabled && limitedTimeEndsAt && now < limitedTimeEndsAt && (!preOrderEndsAt || now > preOrderEndsAt));
   const isReserveOrder = !!(product.limitedTimeEnabled && limitedTimeEndsAt && now >= limitedTimeEndsAt);
 
-  const currentPrice = isPreOrderActive && product.preOrderPrice ? product.preOrderPrice : product.price;
+  const currentPrice = (isPreOrderActive && product.preOrderPrice) 
+    ? product.preOrderPrice 
+    : (product.salePrice && product.salePrice < product.price ? product.salePrice : product.price);
   const isAvailable = isDropActive || isPreOrderActive || isLimitedTimeActive || isReserveOrder;
 
   // Which timer to show?
@@ -135,11 +137,9 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
                    <span className="text-2xl font-bold tracking-tighter text-ink">
                      {formatPrice(currentPrice)}
                    </span>
-                   {(product.salePrice || (isPreOrderActive && product.preOrderPrice)) && (
+                   {currentPrice < product.price && (
                      <span className="text-base text-muted/50 line-through font-bold">
-                       {isPreOrderActive && product.preOrderPrice 
-                         ? formatPrice(product.price) 
-                         : product.salePrice ? formatPrice(product.salePrice) : ''}
+                       {formatPrice(product.price)}
                      </span>
                    )}
                 </div>

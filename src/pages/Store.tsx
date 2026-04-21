@@ -181,12 +181,24 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
                    <span className="text-[10px] uppercase tracking-widest text-muted">Glaze Series Base</span>
                    <span className="text-xs text-muted">|</span>
                    <p className="text-sm text-ink font-bold leading-none">
-                     {product.preOrderEnabled && product.preOrderPrice ? (
-                        <>
-                          <span className="text-gold">{formatPrice(product.preOrderPrice)}</span>
-                          <span className="ml-2 text-[10px] text-muted line-through opacity-50">{formatPrice(product.price)}</span>
-                        </>
-                     ) : formatPrice(product.price)}
+                     {(() => {
+                       const now = new Date();
+                       const preOrderEndsAt = product.preOrderEndsAt ? new Date(product.preOrderEndsAt) : null;
+                       const isPreOrder = !!(product.preOrderEnabled && preOrderEndsAt && now < preOrderEndsAt);
+                       const currentPrice = (isPreOrder && product.preOrderPrice) 
+                         ? product.preOrderPrice 
+                         : (product.salePrice && product.salePrice < product.price ? product.salePrice : product.price);
+
+                       if (currentPrice < product.price) {
+                         return (
+                            <>
+                              <span className="text-gold">{formatPrice(currentPrice)}</span>
+                              <span className="ml-2 text-[10px] text-muted line-through opacity-50">{formatPrice(product.price)}</span>
+                            </>
+                         );
+                       }
+                       return formatPrice(product.price);
+                     })()}
                    </p>
                 </div>
               </div>

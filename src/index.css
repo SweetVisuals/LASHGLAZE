@@ -76,4 +76,27 @@
   .premium-gradient {
     @apply bg-gradient-to-br from-accent/30 via-white to-gold/10;
   }
+
+  /* Custom Checkbox */
+  .luxe-checkbox {
+    @apply relative border-2 border-accent bg-paper transition-all duration-300 cursor-pointer overflow-hidden rounded-none flex-shrink-0;
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+  
+  .luxe-checkbox input {
+    @apply absolute opacity-0 w-0 h-0 cursor-pointer;
+  }
+  
+  .luxe-checkbox-inner {
+    @apply w-full h-full flex items-center justify-center scale-0 transition-transform duration-300 bg-ink rounded-none;
+  }
+  
+  .luxe-checkbox input:checked + .luxe-checkbox-inner {
+    @apply scale-100;
+  }
+
+  .luxe-checkbox:hover {
+    @apply border-gold;
+  }
 }

@@ -35,10 +35,14 @@ interface Subscription {
   next_delivery_date: string;
 }
 
-export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onOrderClick }) => {
+interface ProfileProps {
+  onBack: () => void;
+  onOrderClick?: (id: string) => void;
+}
+
+export default function Profile({ onBack, onOrderClick }: ProfileProps) {
   const { isCustomerLoggedIn, logoutCustomer, user, storeSettings, formatOrderNumber } = useApp();
   const formatPrice = (amount: number) => formatPriceUtil(amount, storeSettings.currency);
-  const theme = storeSettings.colors;
   
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -58,7 +62,6 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
       setLoading(false);
     }
     
-    // Safety timeout to prevent infinite loading
     const timeout = setTimeout(() => {
       if (isMounted && loading) {
         setLoading(false);
@@ -74,7 +77,6 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
   const loadProfileData = async () => {
     setLoading(true);
     try {
-      // Fetch Profile
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -86,7 +88,6 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
       setProfile(profileData);
       setFullName(profileData.full_name || '');
 
-      // Fetch Orders
       const { data: ordersData, error: ordersError } = await supabase
         .from('orders')
         .select('*')
@@ -96,7 +97,6 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
       if (ordersError) throw ordersError;
       setOrders(ordersData || []);
 
-      // Fetch Subscriptions
       const { data: subsData, error: subsError } = await supabase
         .from('subscriptions')
         .select('*')
@@ -126,7 +126,6 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
 
       if (error) throw error;
       
-      // Also update auth metadata so topbar handles it immediately
       await supabase.auth.updateUser({
         data: { full_name: fullName }
       });
@@ -209,10 +208,22 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
                    )}
                 </div>
                 <div>
-                  <h1 className="font-serif text-5xl md:text-6xl italic tracking-tighter">The Atelier</h1>
-                  <p className="text-[10px] uppercase tracking-[0.4em] text-muted font-bold mt-2">
+                   <div className="flex items-center gap-4">
+                    <h1 className="font-serif text-5xl md:text-6xl italic tracking-tighter">The Atelier</h1>
+                    {subscriptions.some(s => s.status === 'active') && (
+                      <motion.div 
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-gold text-paper px-3 py-1 text-[8px] font-bold uppercase tracking-[0.2em] shadow-lg flex items-center gap-1.5"
+                      >
+                         <Zap size={10} fill="currentColor" />
+                         Subscription Active
+                      </motion.div>
+                    )}
+                   </div>
+                   <p className="text-[10px] uppercase tracking-[0.4em] text-muted font-bold mt-2">
                     {profile?.role === 'admin' ? 'Master Architect' : 'Aura Member'} / {user?.email}
-                  </p>
+                   </p>
                 </div>
              </div>
           </div>
@@ -226,7 +237,6 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
         </motion.header>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
-           {/* Left Column: Management */}
            <div className="lg:col-span-5 space-y-8">
               <section className="bg-accent/10 p-10 rounded-none shadow-2xl space-y-10">
                  <div>
@@ -274,63 +284,74 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
                  </div>
               </section>
 
-               <div className="bg-ink p-10 rounded-none shadow-2xl space-y-6">
-                  <h4 className="text-[9px] uppercase tracking-[0.3em] font-bold text-paper/40">Member Exclusive</h4>
-                  <p className="text-[10px] font-bold tracking-widest leading-relaxed uppercase text-paper/60">
-                     You have achieved elite status. Luxury styling consultations are now complimentary for your atelier.
-                  </p>
-                  <button className="text-[9px] font-bold uppercase tracking-[0.3em] text-gold flex items-center gap-2 group">
-                     Summon Specialist <ChevronRight size={12} className="transition-transform group-hover:translate-x-1" />
-                  </button>
-               </div>
+               {subscriptions.some(s => s.status === 'active') && (
+                 <div className="p-10 rounded-none shadow-2xl space-y-6" style={{ backgroundColor: 'var(--preOrder)', color: 'var(--paper)' }}>
+                    <h4 className="text-[9px] uppercase tracking-[0.3em] font-bold opacity-40">Elite Subscription Status</h4>
+                    <p className="text-[10px] font-bold tracking-widest leading-relaxed uppercase opacity-80">
+                       You have achieved premier atelier status through your active replenishment cycle. Luxury styling consultations are now complimentary.
+                    </p>
+                    <button className="text-[9px] font-bold uppercase tracking-[0.3em] text-paper flex items-center gap-2 group border-b border-paper/20 pb-1">
+                       Summon Specialist <ChevronRight size={12} className="transition-transform group-hover:translate-x-1" />
+                    </button>
+                 </div>
+               )}
 
-               {/* Subscriptions Management */}
-               <section className="bg-accent/10 p-10 rounded-none shadow-2xl space-y-8">
-                  <div className="flex items-center gap-4 mb-2">
-                     <Zap size={20} className="text-gold" />
-                     <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Replenishment Cycles</h2>
-                  </div>
-                  
-                  <div className="space-y-6">
-                     {subscriptions.length > 0 ? (
-                        subscriptions.map(sub => (
-                           <div key={sub.id} className="p-6 bg-accent/5 space-y-4 shadow-sm relative overflow-hidden">
-                              <div className="flex justify-between items-start">
-                                 <div>
-                                    <p className="text-[10px] font-bold uppercase tracking-widest text-ink">{sub.interval} Replenishment</p>
-                                    <p className="text-[8px] text-muted uppercase font-bold tracking-wider mt-1">Status: <span className={sub.status === 'active' ? 'text-green-600' : 'text-red-500'}>{sub.status}</span></p>
-                                 </div>
-                                 <p className="text-xs font-bold text-ink">{formatPrice(sub.total)}</p>
-                              </div>
-                              
-                              {sub.status === 'active' && (
-                                 <div className="pt-4 border-t border-accent/10 flex justify-between items-end">
-                                    <div>
-                                       <p className="text-[8px] text-muted uppercase font-bold tracking-widest mb-1">Next Delivery Due</p>
-                                       <p className="text-[10px] font-bold text-ink">{sub.next_delivery_date ? new Date(sub.next_delivery_date).toLocaleDateString() : 'Pending'}</p>
-                                    </div>
-                                    <button 
-                                      onClick={() => handleCancelSubscription(sub.id)}
-                                      className="text-[8px] uppercase tracking-widest font-bold text-red-500/40 hover:text-red-500 transition-colors"
-                                    >
-                                       Terminate Cycle
-                                    </button>
-                                 </div>
-                              )}
-                           </div>
-                        ))
-                     ) : (
-                        <div className="py-8 text-center opacity-30">
-                           <p className="text-[9px] uppercase tracking-widest font-bold">No active cycles found</p>
-                        </div>
-                     )}
-                  </div>
-               </section>
+               {subscriptions.length > 0 && (
+                 <section className="bg-accent/10 p-10 rounded-none shadow-2xl space-y-8">
+                    <div className="flex items-center gap-4 mb-2">
+                       <Zap size={20} className="text-gold" />
+                       <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Replenishment Cycles</h2>
+                    </div>
+                    
+                    <div className="space-y-6">
+                       {subscriptions.map(sub => (
+                          <div 
+                            key={sub.id} 
+                            className={`p-6 space-y-4 shadow-sm relative overflow-hidden transition-all duration-500 ${
+                              sub.status === 'active' 
+                                ? 'bg-paper border-l-2 border-gold shadow-xl scale-[1.02]' 
+                                : 'bg-accent/5 opacity-60'
+                            }`}
+                          >
+                             {sub.status === 'active' && (
+                               <div className="absolute top-0 right-0 p-4 opacity-5">
+                                  <Zap size={60} fill="currentColor" />
+                               </div>
+                             )}
+                             <div className="flex justify-between items-start relative z-10">
+                                <div>
+                                   <div className="flex items-center gap-2">
+                                      <p className="text-[10px] font-bold uppercase tracking-widest text-ink">{sub.interval} Replenishment</p>
+                                      {sub.status === 'active' && <div className="w-1.5 h-1.5 bg-gold rounded-full animate-pulse" />}
+                                   </div>
+                                   <p className="text-[8px] text-muted uppercase font-bold tracking-wider mt-1">Status: <span className={sub.status === 'active' ? 'text-gold' : 'text-red-500'}>{sub.status}</span></p>
+                                </div>
+                                <p className="text-xs font-bold text-ink">{formatPrice(sub.total)}</p>
+                             </div>
+                             
+                             {sub.status === 'active' && (
+                                <div className="pt-4 border-t border-accent/10 flex justify-between items-end">
+                                   <div>
+                                      <p className="text-[8px] text-muted uppercase font-bold tracking-widest mb-1">Next Delivery Due</p>
+                                      <p className="text-[10px] font-bold text-ink">{sub.next_delivery_date ? new Date(sub.next_delivery_date).toLocaleDateString() : 'Pending'}</p>
+                                   </div>
+                                   <button 
+                                     onClick={() => handleCancelSubscription(sub.id)}
+                                     className="text-[8px] uppercase tracking-widest font-bold text-red-500/40 hover:text-red-500 transition-colors"
+                                   >
+                                      Terminate Cycle
+                                   </button>
+                                </div>
+                             )}
+                          </div>
+                       ))}
+                    </div>
+                 </section>
+               )}
            </div>
 
-           {/* Right Column: Order History */}
            <div className="lg:col-span-7 space-y-8">
-              <section className="bg-accent/10 p-10 rounded-none shadow-2xl min-h-[600px] flex flex-col">
+              <section id="recent-orders" className="bg-accent/10 p-10 rounded-none shadow-2xl min-h-[600px] flex flex-col">
                  <div className="flex justify-between items-center mb-12">
                     <div className="flex items-center gap-4">
                        <ShoppingBag size={20} className="text-gold" />
@@ -383,32 +404,9 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
                    </button>
                  )}
               </section>
-
-              {/* Security & Access */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                 <div className="bg-accent/10 p-10 rounded-none shadow-2xl space-y-6">
-                    <div className="flex items-center gap-4">
-                       <Shield size={20} className="text-gold" />
-                       <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold">Security Token</h3>
-                    </div>
-                    <p className="text-[10px] font-bold tracking-widest opacity-40 leading-relaxed uppercase">
-                       Two-factor authentication is active. Access is secured via biometric signature.
-                    </p>
-                 </div>
-
-                 <div className="bg-accent/10 p-10 rounded-none shadow-2xl space-y-6">
-                    <div className="flex items-center gap-4">
-                       <MapPin size={20} className="text-gold" />
-                       <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold">Logistic Hub</h3>
-                    </div>
-                    <p className="text-[10px] font-bold tracking-widest opacity-40 leading-relaxed uppercase">
-                       Orders are dispatched from our Berlin atelier to your primary residence.
-                    </p>
-                 </div>
-              </div>
            </div>
         </div>
       </div>
     </div>
   );
-};
+}

@@ -406,7 +406,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (!isAvailable) return; 
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
-      const currentPrice = isPreOrderActive && product.preOrderPrice ? product.preOrderPrice : product.price;
+      const currentPrice = (isPreOrderActive && product.preOrderPrice) 
+        ? product.preOrderPrice 
+        : (product.salePrice && product.salePrice < product.price ? product.salePrice : product.price);
       
       if (existing) {
         return prev.map(item => 

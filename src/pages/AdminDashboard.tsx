@@ -948,8 +948,14 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                   <div className="space-y-1">
                      <p className="text-[10px] uppercase text-muted font-bold">Pricing</p>
                      <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold">{formatPrice(parseFloat(data.price || '0'))}</span>
-                        {data.salePrice && <span className="text-sm text-red-500 line-through">{formatPrice(parseFloat(data.salePrice))}</span>}
+                        <span className="text-2xl font-bold">
+                          {formatPrice(data.salePrice && parseFloat(data.salePrice) < parseFloat(data.price) ? parseFloat(data.salePrice) : parseFloat(data.price || '0'))}
+                        </span>
+                        {data.salePrice && parseFloat(data.salePrice) < parseFloat(data.price) && (
+                          <span className="text-sm text-muted line-through font-bold">
+                            {formatPrice(parseFloat(data.price || '0'))}
+                          </span>
+                        )}
                      </div>
                   </div>
                   <div className="space-y-1">

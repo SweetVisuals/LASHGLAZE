@@ -10,7 +10,7 @@ import { Package, Truck, CheckCircle2, Clock, MapPin, Search, Box, Loader2 } fro
 import { supabase } from '../supabase';
 import { formatPrice as formatPriceUtil } from '../utils/format';
 
-export const OrderTracking: React.FC<{ initialOrderId?: string }> = ({ initialOrderId }) => {
+export const OrderTracking: React.FC<{ initialOrderId?: string, onMyOrdersClick?: () => void }> = ({ initialOrderId, onMyOrdersClick }) => {
   const { orders, storeSettings, formatOrderNumber } = useApp();
   const [orderId, setOrderId] = useState(initialOrderId || '');
   const [trackedOrder, setTrackedOrder] = useState<any>(null);
@@ -114,6 +114,16 @@ export const OrderTracking: React.FC<{ initialOrderId?: string }> = ({ initialOr
         <header className="text-center space-y-4 mb-20">
           <h1 className="font-serif text-5xl italic tracking-tight">Track Your Journey</h1>
           <p className="text-[10px] uppercase tracking-[0.4em] text-muted font-bold">Lash Glaze Series Delivery Tracking</p>
+          
+          <div className="pt-8">
+            <button 
+              onClick={onMyOrdersClick}
+              className="text-[9px] uppercase tracking-[0.3em] font-bold text-muted hover:text-ink transition-colors flex items-center gap-2 mx-auto group"
+            >
+               <Package size={12} className="transition-transform group-hover:scale-110" />
+               View My Orders
+            </button>
+          </div>
         </header>
 
         <form onSubmit={handleTrack} className="flex gap-4 mb-16">
@@ -124,7 +134,7 @@ export const OrderTracking: React.FC<{ initialOrderId?: string }> = ({ initialOr
               onChange={(e) => setOrderId(e.target.value)}
               type="text" 
               placeholder="ENTER ORDER REF (E.G. LG-1001)"
-              className="w-full bg-accent/10 px-16 py-6 text-xs uppercase tracking-widest font-bold outline-none transition-all placeholder:text-muted/30 rounded-none shadow-inner focus:shadow-xl focus:bg-white"
+              className="w-full bg-accent/10 px-16 py-6 text-xs uppercase tracking-widest font-bold outline-none transition-all placeholder:text-muted/30 rounded-none shadow-inner focus:shadow-xl focus:bg-white text-ink"
             />
           </div>
           <button type="submit" disabled={isSearching} className="bg-ink text-paper px-12 py-6 text-[10px] uppercase tracking-[0.4em] font-bold hover:bg-gold hover:text-ink transition-all shadow-xl rounded-none disabled:opacity-50 flex items-center gap-3">
@@ -220,7 +230,7 @@ export const OrderTracking: React.FC<{ initialOrderId?: string }> = ({ initialOr
                     </div>
                     <p className="text-[10px] font-bold tracking-widest leading-loose uppercase text-ink">
                       Secured Transit to Destination Atelier<br />
-                      Dispatch Center: Berlin Central
+                      Dispatch Center: London Central
                     </p>
                   </div>
                </div>

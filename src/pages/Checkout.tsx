@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trash2, ChevronLeft, CreditCard, Ship, Lock, CheckCircle2, AlertCircle, ShieldCheck, Beaker, Clock, Copy, Package } from 'lucide-react';
+import { Trash2, ChevronLeft, CreditCard, Ship, Lock, CheckCircle2, AlertCircle, ShieldCheck, Beaker, Clock, Copy, Package, Check } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
@@ -17,7 +17,7 @@ import { AuthModal } from '../components/AuthModal';
 // Initialize Stripe outside component to avoid recreating it
 const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLIC_KEY || '');
 
-const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatPrice }: { total: number, email: string, currency: string, onComplete: () => void, color: string, formatPrice: (n: number) => string }) => {
+const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatPrice, agreeTerms, agreeData, onShowError }: { total: number, email: string, currency: string, onComplete: () => void, color: string, formatPrice: (n: number) => string, agreeTerms: boolean, agreeData: boolean, onShowError: (show: boolean) => void }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +26,14 @@ const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatP
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!stripe || !elements) return;
+
+    if (!agreeTerms || !agreeData) {
+      onShowError(true);
+      const element = document.getElementById('requirement-agreements');
+      if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    onShowError(false);
 
     setProcessing(true);
     setError(null);
@@ -74,7 +82,7 @@ const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatP
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       onSubmit={handleSubmit} 
-      className="space-y-8 mt-6 relative p-10 bg-paper shadow-[0_20px_50px_rgba(0,0,0,0.1)]"
+      className="space-y-8 mt-6 relative px-3 py-8 md:p-10 bg-paper shadow-[0_20px_50px_rgba(0,0,0,0.1)]"
     >
       <div className="absolute top-0 right-0 p-5 flex gap-2">
          <ShieldCheck size={14} className="text-emerald-700" strokeWidth={2} />
@@ -84,7 +92,7 @@ const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatP
       <div className="space-y-4">
         <label className="block text-[9px] uppercase tracking-[0.3em] font-bold text-ink/40">Secure Payment Entry</label>
         <div className="group transition-all duration-500">
-          <div className="p-5 bg-paper shadow-[inset_0_2px_10px_rgba(0,0,0,0.05)] focus-within:bg-paper focus-within:shadow-[inset_0_2px_20px_rgba(0,0,0,0.08)] transition-all duration-300">
+          <div className="p-3 md:p-5 bg-paper shadow-[inset_0_2px_10px_rgba(0,0,0,0.05)] focus-within:bg-paper focus-within:shadow-[inset_0_2px_20px_rgba(0,0,0,0.08)] transition-all duration-300">
              <CardElement options={{ 
                 style: { 
                   base: { 
@@ -135,7 +143,7 @@ const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatP
 
 interface CheckoutProps {
   onBack: () => void;
-  onSuccessRedirect?: () => void;
+  onSuccessRedirect?: (orderId?: string) => void;
 }
 
 export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect }) => {
@@ -194,8 +202,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
     // Only auto-redirect if logged in, otherwise stay on success page to let guest save order number
     if (isSuccess && onSuccessRedirect && isCustomerLoggedIn) {
       const timer = setTimeout(() => {
-        onSuccessRedirect();
-      }, 5000);
+        onSuccessRedirect(createdOrder?.id);
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [isSuccess, onSuccessRedirect, isCustomerLoggedIn]);
@@ -365,7 +373,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
   }
 
   if (isSuccess && !show3DSecure) {
-    const orderNum = createdOrder?.order_number ? formatOrderNumber(createdOrder.order_number) : '#LG-PENDING';
+    const orderNum = createdOrder?.order_number ? formatOrderNumber(createdOrder.order_number) : (createdOrder?.orderNumber ? formatOrderNumber(createdOrder.orderNumber) : '#LG-PENDING');
     
     const handleCopy = () => {
       navigator.clipboard.writeText(orderNum);
@@ -388,7 +396,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
           <div className="flex items-center justify-center gap-2 mb-12">
             <div className="h-[2px] w-4 bg-green-600 animate-pulse" />
             <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-green-600/80">
-              {isCustomerLoggedIn ? 'Securing your atelier profile... redirected in 5s' : 'Order finalized successfully'}
+              {isCustomerLoggedIn ? 'Securing your atelier profile... tracking order in 1s' : 'Order finalized successfully'}
             </p>
             <div className="h-[2px] w-4 bg-green-600 animate-pulse" />
           </div>
@@ -449,11 +457,11 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
   }
 
   return (
-    <div className="bg-paper min-h-screen py-12 lg:py-24 px-4">
+    <div className="bg-paper min-h-screen py-8 lg:py-24 px-2 md:px-4">
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16">
         
         {/* Left Column: Form / Steps */}
-        <div className="lg:col-span-12 xl:col-span-7 space-y-12">
+        <div className="lg:col-span-12 xl:col-span-7 space-y-8 md:space-y-12">
           <button 
             onClick={onBack}
             className="flex items-center gap-2 text-muted hover:text-ink transition-colors text-[10px] uppercase tracking-[0.2em] font-bold"
@@ -576,7 +584,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                  <div className={`transition-all rounded-none shadow-sm ${isSubscription ? 'bg-accent/10 shadow-xl' : 'bg-accent/5'}`}>
                     <button 
                       onClick={() => setIsSubscription(!isSubscription)}
-                      className={`w-full flex justify-between items-center px-8 py-6 transition-all rounded-none ${
+                      className={`w-full flex justify-between items-center px-4 md:px-8 py-6 transition-all rounded-none ${
                         isSubscription ? 'bg-ink text-paper shadow-xl' : 'hover:bg-accent/10'
                       }`}
                     >
@@ -632,17 +640,75 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               </div>
             </section>
 
+            <section id="requirement-agreements" className="space-y-8 bg-accent/5 p-8 shadow-inner border-l-2 border-gold/20">
+               <div className="flex items-center gap-4 mb-2">
+                  <Lock size={14} className="text-muted" />
+                  <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-ink">Requirement Agreements</h3>
+               </div>
+               
+               <div className="space-y-8">
+                  <label className="flex items-start gap-5 cursor-pointer group">
+                    <div className="luxe-checkbox mt-1">
+                      <input 
+                        type="checkbox" 
+                        checked={agreeTerms}
+                        onChange={(e) => {
+                          setAgreeTerms(e.target.checked);
+                          if (e.target.checked && agreeData) setShowError(false);
+                        }}
+                      />
+                      <div className="luxe-checkbox-inner">
+                        <Check size={14} className="text-paper" strokeWidth={3} />
+                      </div>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-[0.2em] leading-relaxed text-muted group-hover:text-ink transition-colors flex-grow">
+                      I agree to the Terms of Service and Return Policy. I acknowledge that lashes removed from their original tray cannot be returned due to hygiene regulations.
+                    </span>
+                  </label>
+                  
+                  <label className="flex items-start gap-5 cursor-pointer group">
+                    <div className="luxe-checkbox mt-1">
+                      <input 
+                        type="checkbox" 
+                        checked={agreeData}
+                        onChange={(e) => {
+                          setAgreeData(e.target.checked);
+                          if (e.target.checked && agreeTerms) setShowError(false);
+                        }}
+                      />
+                      <div className="luxe-checkbox-inner">
+                        <Check size={14} className="text-paper" strokeWidth={3} />
+                      </div>
+                    </div>
+                    <span className="text-[10px] uppercase tracking-[0.2em] leading-relaxed text-muted group-hover:text-ink transition-colors flex-grow">
+                      I consent to the secure processing of my personal data for order fulfillment as outlined in the Privacy Policy.
+                    </span>
+                  </label>
+               </div>
+
+               {showError && (
+                  <motion.div 
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="flex items-center gap-3 text-red-700 text-[10px] font-bold uppercase tracking-widest bg-red-50 p-5 shadow-lg"
+                  >
+                     <AlertCircle size={14} /> 
+                     Please accept all requirement agreements to finalize.
+                  </motion.div>
+               )}
+            </section>
+
             <section>
               <div className="flex items-center gap-6 mb-10">
                  <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">05</div>
-                 <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Financial</h2>
+                 <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Financial Selection</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                  {enabledPayments.map(p => (
                    <button 
                      key={p.id} 
                      onClick={() => setSelectedPaymentId(p.id)}
-                     className={`p-8 transition-all flex flex-col items-center gap-4 group shadow-sm hover:shadow-xl ${
+                     className={`p-4 md:p-8 transition-all flex flex-col items-center gap-4 group shadow-sm hover:shadow-xl ${
                        selectedPaymentId === p.id ? 'bg-ink text-paper shadow-xl' : 'bg-accent/5 hover:bg-accent/10'
                      }`}
                    >
@@ -658,7 +724,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               </div>
 
               {/* Dynamic Payment Method UI */}
-              <div className="bg-accent/5 p-6 shadow-inner min-h-[150px]">
+              <div className="bg-accent/5 px-0 py-6 md:p-6 shadow-inner min-h-[150px]">
                  {selectedPaymentId && (
                     <>
                        {paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'paypal' && (
@@ -666,6 +732,15 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                            <div className="w-full max-w-sm">
                              <PayPalScriptProvider options={{ clientId: (import.meta as any).env.VITE_PAYPAL_CLIENT_ID || "test", currency: storeSettings.currency === '£' ? 'GBP' : (storeSettings.currency === '$' ? 'USD' : 'EUR') }}>
                                <PayPalButtons style={{ layout: "vertical", shape: "rect", color: "black" }} 
+                                 onClick={(data, actions) => {
+                                   if (!agreeTerms || !agreeData) {
+                                     setShowError(true);
+                                     const element = document.getElementById('requirement-agreements');
+                                     if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                     return actions.reject();
+                                   }
+                                   return actions.resolve();
+                                 }}
                                  createOrder={(data, actions) => {
                                    return actions.order.create({
                                      intent: "CAPTURE",
@@ -700,7 +775,10 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                              currency={storeSettings.currency}
                              onComplete={handleApproveAuth} 
                              color={storeSettings.colors.ink} 
-                             formatPrice={formatPrice} 
+                             formatPrice={formatPrice}
+                             agreeTerms={agreeTerms}
+                             agreeData={agreeData}
+                             onShowError={setShowError}
                            />
                          </Elements>
                        )}
@@ -717,47 +795,15 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               </div>
             </section>
 
-            <div className="space-y-6 max-w-xl pb-4">
-              <label className="flex items-start gap-4 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  checked={agreeTerms}
-                  onChange={(e) => setAgreeTerms(e.target.checked)}
-                  className="mt-1 w-4 h-4 accent-ink"
-                />
-                <span className="text-[10px] uppercase tracking-widest leading-relaxed text-muted group-hover:text-ink transition-colors">
-                  I agree to the Terms of Service and Return Policy. I acknowledge that lashes removed from their original tray cannot be returned due to hygiene regulations.
-                </span>
-              </label>
-              
-              <label className="flex items-start gap-4 cursor-pointer group">
-                <input 
-                  type="checkbox" 
-                  checked={agreeData}
-                  onChange={(e) => setAgreeData(e.target.checked)}
-                  className="mt-1 w-4 h-4 accent-ink"
-                />
-                <span className="text-[10px] uppercase tracking-widest leading-relaxed text-muted group-hover:text-ink transition-colors">
-                  I consent to the secure processing of my personal and financial data for order fulfillment as outlined in the Privacy Policy.
-                </span>
-              </label>
 
-              {showError && (
-                 <div className="flex items-center gap-2 text-red-700 text-xs font-bold uppercase tracking-widest bg-red-50 p-4 rounded-none shadow-lg shadow-red-500/5">
-                    <AlertCircle size={16} /> 
-                    Please accept all required agreements to finalize.
-                 </div>
-              )}
-            </div>
-
-            {/* Hide main submit button if PayPal is selected since PayPal uses its own button, or if Stripe is loaded since it renders its own */}
-            {paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'paypal' && paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'card' && (
+            {selectedPaymentId && paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'paypal' && paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'card' && (
               <button 
                 onClick={handleFinalize}
                 disabled={isProcessing}
-               className="w-full bg-ink text-paper py-7 text-xs font-bold uppercase tracking-[0.4em] shadow-[0_20px_50px_rgba(0,0,0,0.2)] disabled:opacity-50 border-none"
+               className="w-full bg-ink text-paper py-7 text-xs font-bold uppercase tracking-[0.4em] shadow-[0_20px_50px_rgba(0,0,0,0.2)] disabled:opacity-50 border-none relative overflow-hidden group"
               >
-                {isProcessing ? 'Initializing Payment...' : 'Finalize Order'}
+                <span className="relative z-10">{isProcessing ? 'Initializing Payment...' : 'Finalize order'}</span>
+                <div className="absolute inset-0 bg-gold/10 -translate-x-full group-hover:translate-x-0 transition-transform duration-500" />
               </button>
             )}
           </div>
