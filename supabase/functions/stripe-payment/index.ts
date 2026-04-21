@@ -11,7 +11,7 @@ serve(async (req) => {
 
   try {
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-      apiVersion: '2022-11-15',
+      apiVersion: '2025-01-27.acacia',
     })
 
     const { amount, currency, email, isSubscription, interval, successUrl, cancelUrl } = await req.json()

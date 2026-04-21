@@ -4,14 +4,11 @@
  */
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { Instagram, Music2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 
-interface FooterProps {
-  onNavigate?: (page: any) => void;
-}
-
-export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+export const Footer: React.FC = () => {
   const { storeSettings } = useApp();
   
   return (
@@ -42,17 +39,27 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <div className="lg:pl-10">
           <h4 className="text-[10px] uppercase tracking-[0.3em] font-bold mb-10">Archive</h4>
           <ul className="flex flex-col gap-6 text-[10px] font-bold uppercase tracking-widest text-muted">
-            <li onClick={() => onNavigate && onNavigate('store')} className="hover:text-ink cursor-pointer transition-colors">Shop All</li>
+            <li>
+              <Link to="/" className="hover:text-ink cursor-pointer transition-colors">Shop All</Link>
+            </li>
           </ul>
         </div>
 
         <div>
           <h4 className="text-[10px] uppercase tracking-[0.3em] font-bold mb-10">Assistance</h4>
           <ul className="flex flex-col gap-6 text-[10px] font-bold uppercase tracking-widest text-muted">
-            <li onClick={() => onNavigate && onNavigate('shipping')} className="hover:text-ink cursor-pointer transition-colors">Shipping Logistics</li>
-            <li onClick={() => onNavigate && onNavigate('returns')} className="hover:text-ink cursor-pointer transition-colors">Returns & Claims</li>
-            <li className="hover:text-ink cursor-pointer transition-colors">Contact Expert</li>
-            <li onClick={() => onNavigate && onNavigate('faq')} className="hover:text-ink cursor-pointer transition-colors">Common Queries</li>
+            <li>
+              <Link to="/shipping" className="hover:text-ink cursor-pointer transition-colors">Shipping Logistics</Link>
+            </li>
+            <li>
+              <Link to="/returns" className="hover:text-ink cursor-pointer transition-colors">Returns & Claims</Link>
+            </li>
+            <li>
+              <a href="mailto:expert@lashglaze.com" className="hover:text-ink cursor-pointer transition-colors">Contact Expert</a>
+            </li>
+            <li>
+              <Link to="/faq" className="hover:text-ink cursor-pointer transition-colors">Common Queries</Link>
+            </li>
           </ul>
         </div>
 
@@ -77,11 +84,12 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10 pt-16 text-[9px] uppercase tracking-[0.3em] font-bold text-muted opacity-50">
         <p className="opacity-50">© 2026 LASH GLAZE STRIP LASHES. ALL RIGHTS RESERVED.</p>
         <div className="flex gap-12">
-           <span onClick={() => onNavigate && onNavigate('privacy')} className="hover:text-ink cursor-pointer transition-colors">Privacy</span>
-           <span onClick={() => onNavigate && onNavigate('terms')} className="hover:text-ink cursor-pointer transition-colors">Terms</span>
-           <span onClick={() => onNavigate && onNavigate('terms')} className="hover:text-ink cursor-pointer transition-colors">Sustainability</span>
+           <Link to="/privacy" className="hover:text-ink cursor-pointer transition-colors">Privacy</Link>
+           <Link to="/terms" className="hover:text-ink cursor-pointer transition-colors">Terms</Link>
+           <Link to="/terms" className="hover:text-ink cursor-pointer transition-colors">Sustainability</Link>
         </div>
       </div>
     </footer>
   );
 };
+

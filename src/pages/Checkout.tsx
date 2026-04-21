@@ -81,14 +81,19 @@ const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatP
         <div className="group transition-all duration-500">
           <div className="p-3 md:p-5 bg-paper shadow-[inset_0_2px_10px_rgba(0,0,0,0.05)] focus-within:bg-paper focus-within:shadow-[inset_0_2px_20px_rgba(0,0,0,0.08)] transition-all duration-300">
              <PaymentElement options={{ 
-                layout: 'tabs',
-                theme: 'none' as any,
-                style: {
-                   base: {
-                      fontSize: '16px',
-                      color: color,
-                      fontFamily: '"Inter", system-ui, sans-serif',
-                   }
+                layout: {
+                  type: 'tabs',
+                  defaultCollapsed: false,
+                },
+                wallets: {
+                  applePay: 'auto',
+                  googlePay: 'auto',
+                },
+                terms: {
+                  card: 'never',
+                },
+                business: {
+                  name: 'Lash Glaze',
                 }
              } as any} />
           </div>
@@ -923,21 +928,43 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                                  <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-ink/40">Securing Payment Tunnel...</p>
                               </div>
                             ) : (stripeClientSecret && stripeClientSecret.startsWith('pi_')) ? (
-                               <Elements 
-                                 key={stripeClientSecret} 
-                                 stripe={stripePromise} 
-                                 options={{ 
-                                   clientSecret: stripeClientSecret,
-                                   appearance: {
-                                     theme: 'none',
-                                     variables: {
-                                       fontFamily: 'Inter, system-ui, sans-serif',
-                                       colorText: storeSettings.colors.ink,
-                                       colorBackground: storeSettings.colors.paper,
-                                     }
-                                   }
-                                 } as any}
-                               >
+                                 <Elements 
+                                   key={stripeClientSecret} 
+                                   stripe={stripePromise} 
+                                   options={{ 
+                                     clientSecret: stripeClientSecret,
+                                     appearance: {
+                                       theme: 'night',
+                                       variables: {
+                                         fontFamily: 'Inter, system-ui, sans-serif',
+                                         colorText: storeSettings.colors.ink,
+                                         colorBackground: storeSettings.colors.paper,
+                                         colorPrimary: storeSettings.colors.gold || '#D4AF37',
+                                         colorDanger: '#df1b41',
+                                         spacingUnit: '4px',
+                                         borderRadius: '0px',
+                                       },
+                                       rules: {
+                                         '.Input': {
+                                           border: 'none',
+                                           boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.05)',
+                                           backgroundColor: 'rgba(0,0,0,0.02)',
+                                         },
+                                         '.Tab': {
+                                           border: 'none',
+                                           boxShadow: 'none',
+                                         },
+                                         '.Tab:hover': {
+                                           backgroundColor: 'rgba(0,0,0,0.05)',
+                                         },
+                                         '.Tab--selected': {
+                                           backgroundColor: storeSettings.colors.ink,
+                                           color: storeSettings.colors.paper,
+                                         }
+                                       }
+                                     } as any
+                                   }}
+                                 >
                                  <StripeCheckoutForm 
                                    total={total} 
                                    email={customerInfo.email}
