@@ -38,6 +38,10 @@ export interface Order {
   status: 'pending' | 'processed' | 'shipped' | 'out-for-delivery' | 'delivered' | 'cancelled';
   createdAt: string;
   trackingNumber?: string;
+  shippingAddress?: string;
+  shippingCity?: string;
+  shippingPostalCode?: string;
+  shippingCountry?: string;
   stripePaymentIntentId?: string;
   paypalOrderId?: string;
   paymentMethodId?: string;

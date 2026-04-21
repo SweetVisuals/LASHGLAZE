@@ -402,6 +402,10 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
           quantity: item.quantity,
           price: item.price
         })),
+        shipping_address: customerInfo.address,
+        shipping_city: customerInfo.city,
+        shipping_postal_code: customerInfo.postalCode,
+        shipping_country: customerInfo.country,
         ...paymentDetails
       });
 
@@ -415,7 +419,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
           try {
             // Get fresh user to ensure we link to the right profile
             const { data: { user: currentUser } } = await supabase.auth.getUser();
-            const profileIdToUse = currentUser?.id || user?.id || (orderResult as any).customerId || (orderResult as any).profile_id;
+            const profileIdToUse = (currentUser?.email?.toLowerCase() === customerInfo.email.toLowerCase()) ? currentUser?.id : 
+                                 (user?.email?.toLowerCase() === customerInfo.email.toLowerCase()) ? user?.id : null;
             
             if (profileIdToUse) {
               const nextDate = new Date();

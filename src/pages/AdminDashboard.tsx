@@ -1468,7 +1468,7 @@ const OrdersTab = ({ orders, setOrders, deleteOrder, updateOrder }: any) => {
                            ))}
                          </div>
                          <div className="grid grid-cols-2 gap-2 mt-2">
-                            {['pending', 'shipped', 'delivered'].map((st) => (
+                            {['pending', 'processed', 'shipped', 'out-for-delivery', 'delivered'].map((st) => (
                               <button 
                                  key={st}
                                  onClick={(e) => { e.stopPropagation(); updateTracking(o.id, st); }}
@@ -1571,7 +1571,17 @@ const OrdersTab = ({ orders, setOrders, deleteOrder, updateOrder }: any) => {
                                   <h4 className="text-[9px] uppercase tracking-[0.4em] font-bold text-gold/60">Dispatch To</h4>
                                   <div className="bg-accent/10 p-6 rounded text-[10px] space-y-3 tracking-widest leading-loose">
                                      <p className="font-bold text-ink uppercase">{o.customerName}</p>
-                                     <p className="text-muted">123 FASHION BOULEVARD<br />SUITE 402, DESIGN DISTRICT<br />BERLIN, 10115, DE</p>
+                                     <div className="text-muted uppercase">
+                                       {o.shippingAddress ? (
+                                         <>
+                                           {o.shippingAddress}<br />
+                                           {o.shippingCity}, {o.shippingPostalCode}<br />
+                                           {o.shippingCountry}
+                                         </>
+                                       ) : (
+                                         <span className="italic opacity-50">No shipping identity verified</span>
+                                       )}
+                                     </div>
                                      <div className="pt-3 border-t border-white/10 text-gold font-bold">Standard Priority Shipped</div>
                                   </div>
                                 </div>

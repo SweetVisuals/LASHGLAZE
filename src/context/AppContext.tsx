@@ -66,6 +66,10 @@ interface AppContextType {
     stripe_payment_intent_id?: string;
     paypal_order_id?: string;
     payment_method_id?: string;
+    shipping_address?: string;
+    shipping_city?: string;
+    shipping_postal_code?: string;
+    shipping_country?: string;
   }) => Promise<any | null>;
   updateOrder: (orderId: string, updates: Partial<Order>) => Promise<boolean>;
   deleteOrder: (orderId: string) => Promise<boolean>;
@@ -76,6 +80,7 @@ interface AppContextType {
   isCustomerLoggedIn: boolean;
   storeSettings: StoreSettings;
   user: any | null;
+  profile: any | null;
   dropExpiry: Date;
   isDropActive: boolean;
   liveVisitors: number;
@@ -99,19 +104,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
   const [storeSettings, setStoreSettings] = useState<StoreSettings>(INITIAL_SETTINGS);
   const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [liveVisitors, setLiveVisitors] = useState(0);
 
   
   useEffect(() => {
-    const checkAdmin = async (userId: string, email: string) => {
+    const fetchProfile = async (userId: string) => {
       const { data } = await supabase
         .from('profiles')
-        .select('role')
+        .select('*')
         .eq('id', userId)
         .single();
-      
-      return data?.role === 'admin' || email === 'admin@lashglaze.com';
+      return data;
+    };
+
+    const checkAdmin = async (userId: string, email: string) => {
+      const profileData = await fetchProfile(userId);
+      setProfile(profileData);
+      return profileData?.role === 'admin' || email === 'admin@lashglaze.com';
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -122,6 +133,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         checkAdmin(session.user.id, session.user.email || '').then(isActuallyAdmin => {
           setIsAdmin(isActuallyAdmin);
         });
+      } else {
+        setProfile(null);
       }
     });
 
@@ -135,6 +148,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         });
       } else {
         setIsAdmin(false);
+        setProfile(null);
       }
     });
 
@@ -348,6 +362,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               stripePaymentIntentId: o.stripe_payment_intent_id,
               paypalOrderId: o.paypal_order_id,
               paymentMethodId: o.payment_method_id,
+              shippingAddress: o.shipping_address,
+              shippingCity: o.shipping_city,
+              shippingPostalCode: o.shipping_postal_code,
+              shippingCountry: o.shipping_country,
+              trackingNumber: o.tracking_number,
               items: (o as any).order_items?.map((i: any) => ({
                 productId: i.product_id,
                 quantity: i.quantity,
@@ -377,6 +396,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             .select(`
               id, profile_id, customer_name, customer_email, total, status, created_at, order_number,
               stripe_payment_intent_id, paypal_order_id, payment_method_id,
+              shipping_address, shipping_city, shipping_postal_code, shipping_country, tracking_number,
               order_items ( product_id, quantity, price )
             `)
             .eq('profile_id', user.id)
@@ -395,6 +415,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               stripePaymentIntentId: o.stripe_payment_intent_id,
               paypalOrderId: o.paypal_order_id,
               paymentMethodId: o.payment_method_id,
+              shippingAddress: o.shipping_address,
+              shippingCity: o.shipping_city,
+              shippingPostalCode: o.shipping_postal_code,
+              shippingCountry: o.shipping_country,
+              trackingNumber: o.tracking_number,
               items: (o as any).order_items?.map((i: any) => ({
                 productId: i.product_id,
                 quantity: i.quantity,
@@ -507,10 +532,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const loginCustomer = () => setIsCustomerLoggedIn(true);
 
   const signInWithGoogle = async () => {
+    // Dynamically determine the redirect URL based on current environment
+    const redirectUrl = window.location.origin;
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: redirectUrl,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        }
       }
     });
     if (error) throw error;
@@ -830,20 +862,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const createOrder = async (orderData: { customer_name: string, customer_email: string, total: number, items: { product_id: string, quantity: number, price: number }[] }) => {
+  const createOrder = async (orderData: { 
+    customer_name: string, 
+    customer_email: string, 
+    total: number, 
+    items: { product_id: string, quantity: number, price: number }[],
+    stripe_payment_intent_id?: string,
+    paypal_order_id?: string,
+    payment_method_id?: string,
+    shipping_address?: string,
+    shipping_city?: string,
+    shipping_postal_code?: string,
+    shipping_country?: string
+  }) => {
     try {
       // 1. Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
-          profile_id: user?.id || null,
+          profile_id: (user && orderData.customer_email.toLowerCase() === user.email?.toLowerCase()) ? user.id : null,
           customer_name: orderData.customer_name,
           customer_email: orderData.customer_email,
           total: orderData.total,
           status: 'pending',
           stripe_payment_intent_id: orderData.stripe_payment_intent_id,
           paypal_order_id: orderData.paypal_order_id,
-          payment_method_id: orderData.payment_method_id
+          payment_method_id: orderData.payment_method_id,
+          shipping_address: orderData.shipping_address,
+          shipping_city: orderData.shipping_city,
+          shipping_postal_code: orderData.shipping_postal_code,
+          shipping_country: orderData.shipping_country
         })
         .select()
         .single();
@@ -877,6 +925,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         stripePaymentIntentId: order.stripe_payment_intent_id,
         paypalOrderId: order.paypal_order_id,
         paymentMethodId: order.payment_method_id,
+        shippingAddress: order.shipping_address,
+        shippingCity: order.shipping_city,
+        shippingPostalCode: order.shipping_postal_code,
+        shippingCountry: order.shipping_country,
         items: orderData.items.map(i => ({
           productId: i.product_id,
           quantity: i.quantity,
@@ -999,7 +1051,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setProducts, setOrders, setPaymentMethods, setShippingRegions, setTaxRules, setCoupons, setPolicies, setStoreSettings,
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       loginAsAdmin, logout, loginCustomer, logoutCustomer,
-      updateStoreSettings, saveProduct, deleteProductFromDb, saveCategory, deleteCategory, formatPrice, user, signInWithGoogle,
+      updateStoreSettings, saveProduct, deleteProductFromDb, saveCategory, deleteCategory, formatPrice, user, profile, signInWithGoogle,
       togglePaymentMethod, saveShippingRegion, deleteShippingRegion, saveTaxRule, deleteTaxRule, saveCoupon, deleteCoupon, savePolicy,
       createOrder, updateOrder, deleteOrder, refundOrder, formatOrderNumber,
       isInitialLoading
