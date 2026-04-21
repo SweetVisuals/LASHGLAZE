@@ -238,6 +238,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
 
         // Fetch Payment Methods
+        const { data: paymentData } = await supabase
+          .from('payment_methods')
+          .select('*');
+          
         if (paymentData) {
           setPaymentMethods(paymentData as any);
         }
@@ -385,6 +389,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     root.style.setProperty('--topbarText', storeSettings.colors.topbarText);
     root.style.setProperty('--buttonBg', storeSettings.colors.buttonBg);
     root.style.setProperty('--buttonText', storeSettings.colors.buttonText);
+    root.style.setProperty('--preOrder', storeSettings.colors.preOrder);
+    root.style.setProperty('--limitedTime', storeSettings.colors.limitedTime);
   }, [storeSettings.colors]);
 
   const addToCart = (product: Product, quantity: number = 1) => {

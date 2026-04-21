@@ -223,9 +223,6 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
                  </button>
               )}
 
-                <button className="text-left text-topbarText hover:opacity-70 transition-colors py-4">Essentials</button>
-                <button className="text-left text-topbarText hover:opacity-70 transition-colors py-4">Client Looks</button>
-                <button className="text-left text-topbarText hover:opacity-70 transition-colors py-4">About Us</button>
             </nav>
             
             <div className="mt-auto pt-10 flex flex-col gap-6 text-xs uppercase tracking-widest font-bold text-topbarText/60">

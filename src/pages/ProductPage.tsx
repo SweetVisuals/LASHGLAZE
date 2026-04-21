@@ -16,7 +16,7 @@ interface ProductPageProps {
 }
 
 export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onCheckout }) => {
-  const { products, addToCart, dropExpiry, isDropActive, formatPrice } = useApp();
+  const { products, addToCart, dropExpiry, isDropActive, formatPrice, storeSettings } = useApp();
   const product = products.find(p => p.id === productId);
   const [quantity, setQuantity] = useState(1);
   const [selectedLength, setSelectedLength] = useState('9-16mm');
@@ -147,9 +147,12 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
 
              {/* Integrated Multi-Mode Timer Box */}
              <div 
-               className={`p-6 space-y-4 rounded-none shadow-inner transition-colors duration-500 ${
-                 isPreOrderActive ? 'bg-[#CC5500]' : (isLimitedTimeActive ? 'bg-[#800020]' : 'bg-accent/5')
-               }`}
+               className="p-6 space-y-4 rounded-none shadow-inner transition-colors duration-500"
+               style={{ 
+                 backgroundColor: isPreOrderActive 
+                   ? storeSettings.colors.preOrder 
+                   : (isLimitedTimeActive ? storeSettings.colors.limitedTime : 'rgba(var(--accent-rgb), 0.05)')
+               }}
              >
                 <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-[0.3em]">
                    <span className={activeTimerTarget ? (isPreOrderActive || isLimitedTimeActive ? 'text-white' : 'text-ink') : 'text-red-500'}>

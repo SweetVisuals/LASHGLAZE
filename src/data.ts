@@ -18,6 +18,8 @@ export const INITIAL_SETTINGS: StoreSettings = {
     accent: "#E8D5C4",
     muted: "#9A9187",
     gold: "#D4AF37",
+    preOrder: "#CC5500",
+    limitedTime: "#800020",
     topbarBg: "#FDFCFB",
     topbarText: "#1A1A1A",
     buttonBg: "#1A1A1A",

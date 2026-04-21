@@ -150,7 +150,9 @@ function AppContent() {
         )}
       </main>
 
-      <Footer onNavigate={(page: PageType) => navigateTo(page)} />
+      {currentPage !== 'checkout' && (
+        <Footer onNavigate={(page: PageType) => navigateTo(page)} />
+      )}
       <CookieBanner />
     </div>
   );

@@ -80,6 +80,8 @@ export interface StoreSettings {
     accent: string;
     muted: string;
     gold: string;
+    preOrder: string;
+    limitedTime: string;
     topbarBg: string;
     topbarText: string;
     buttonBg: string;

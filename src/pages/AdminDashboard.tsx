@@ -141,7 +141,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setIsMobileMenuOpen(false)}
-            className="fixed inset-0 bg-ink/80 backdrop-blur-sm z-[60] lg:hidden"
+            className="fixed inset-0 bg-ink/80 backdrop-blur-xl z-[60] lg:hidden"
           />
         )}
       </AnimatePresence>
@@ -149,23 +149,24 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
       {/* Sidebar */}
       <aside 
         className={`
-          fixed inset-y-0 left-0 z-[70] bg-paper flex flex-col transition-all duration-500
-          lg:relative lg:translate-x-0
+          fixed inset-y-0 left-0 z-[70] flex flex-col transition-all duration-500
+          lg:relative lg:translate-x-0 lg:bg-paper
+          max-lg:bg-ink/90 max-lg:backdrop-blur-xl
           shadow-[20px_0_60px_-15px_rgba(0,0,0,0.3)]
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
-          ${isSidebarOpen ? 'w-64' : 'w-20'}
+          ${isSidebarOpen || isMobileMenuOpen ? 'w-64' : 'w-20'}
         `}
       >
         <div className="h-20 flex items-center justify-between px-6">
           {isSidebarOpen ? (
             <div className="flex flex-col">
               <span className="font-serif text-xl italic font-bold uppercase tracking-widest text-gold leading-none">Lash Glaze</span>
-              <span className="text-[8px] tracking-[0.3em] font-bold opacity-40 uppercase leading-none mt-1 text-ink">Strip Lashes</span>
+              <span className={`text-[8px] tracking-[0.3em] font-bold opacity-40 uppercase leading-none mt-1 ${isMobileMenuOpen ? 'text-paper' : 'text-ink'}`}>Strip Lashes</span>
             </div>
           ) : (
             <span className="font-serif text-2xl italic font-bold text-gold mx-auto">L</span>
           )}
-          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-muted hover:text-ink">
+          <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden text-muted hover:text-paper">
             <X size={20} />
           </button>
         </div>
@@ -181,7 +182,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
               className={`w-full flex items-center gap-4 px-4 py-3 rounded-lg transition-all ${
                 activeTab === item.id 
                 ? 'bg-gold/10 text-gold' 
-                : 'text-muted hover:bg-accent/10 hover:text-ink'
+                : 'text-muted hover:bg-accent/10 lg:hover:text-ink max-lg:hover:text-paper'
               }`}
             >
               <item.icon size={20} />
@@ -196,7 +197,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
         <div className="p-4 flex flex-col gap-2">
           <button 
             onClick={onNavigateBack}
-            className="flex items-center gap-4 px-4 py-3 text-muted hover:text-ink transition-colors"
+            className="flex items-center gap-4 px-4 py-3 text-muted lg:hover:text-ink max-lg:hover:text-paper transition-colors"
           >
             <ChevronLeft size={20} />
             {isSidebarOpen && <span className="text-sm font-medium">Storefront</span>}
@@ -2261,7 +2262,7 @@ const DesignTab = () => {
              <div className="p-8 bg-paper rounded-lg space-y-8">
                <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Core Palette</h3>
                <div className="grid grid-cols-1 gap-6">
-                  {['paper', 'ink', 'accent', 'muted', 'gold'].map((key) => {
+                  {['paper', 'ink', 'accent', 'muted', 'gold', 'preOrder', 'limitedTime'].map((key) => {
                     const value = theme[key as keyof typeof theme];
                     return (
                       <div key={key} className="space-y-4">

@@ -170,6 +170,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
   const [createdOrder, setCreatedOrder] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   
   const [promoCode, setPromoCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
