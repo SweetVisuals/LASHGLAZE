@@ -3,11 +3,111 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Google AI Studio App</title>
+    <title>Lash Glaze Strip Lashes</title>
+    <style>
+      #loader-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #FDFCFB; /* Primary topbar color */
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+      }
+      
+      #loader-wrapper.loaded {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .eyelash-container {
+        width: 120px;
+        height: 80px;
+        color: #D4AF37; /* Gold lash color */
+        position: relative;
+      }
+
+      .eyelash-svg {
+        width: 100%;
+        height: 100%;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .eyelash-svg path {
+        transition: all 0.5s ease;
+      }
+
+      .eye-arc {
+        stroke-dasharray: 200;
+        stroke-dashoffset: 200;
+        animation: draw 2s infinite ease-in-out;
+      }
+
+      .lash {
+        opacity: 0;
+        animation: fadeInLash 2s infinite ease-in-out;
+      }
+
+      .lash:nth-child(2) { animation-delay: 0.2s; }
+      .lash:nth-child(3) { animation-delay: 0.4s; }
+      .lash:nth-child(4) { animation-delay: 0.6s; }
+      .lash:nth-child(5) { animation-delay: 0.8s; }
+      .lash:nth-child(6) { animation-delay: 1.0s; }
+
+      @keyframes draw {
+        0% { stroke-dashoffset: 200; }
+        50% { stroke-dashoffset: 0; }
+        100% { stroke-dashoffset: -200; }
+      }
+
+      @keyframes fadeInLash {
+        0%, 100% { opacity: 0; transform: translateY(5px); }
+        50% { opacity: 1; transform: translateY(0); }
+      }
+
+      .loader-text {
+        margin-top: 20px;
+        font-family: 'Playfair Display', serif;
+        font-size: 16px;
+        letter-spacing: 0.6em;
+        text-transform: uppercase;
+        color: #1A1A1A;
+        font-weight: 400;
+        animation: textLetterSpacing 3s infinite ease-in-out;
+      }
+
+      @keyframes textLetterSpacing {
+        0%, 100% { letter-spacing: 0.6em; opacity: 0.5; }
+        50% { letter-spacing: 0.8em; opacity: 1; }
+      }
+    </style>
   </head>
   <body>
+    <div id="loader-wrapper">
+      <div class="eyelash-container">
+        <svg viewBox="0 0 100 60" class="eyelash-svg">
+          <path class="eye-arc" d="M15,40 Q50,15 85,40" />
+          <path class="lash" d="M22,35 L15,25" />
+          <path class="lash" d="M35,28 L30,15" />
+          <path class="lash" d="M50,25 L50,10" />
+          <path class="lash" d="M65,28 L70,15" />
+          <path class="lash" d="M78,35 L85,25" />
+        </svg>
+      </div>
+      <div class="loader-text">Lash Glaze</div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
+
 

@@ -6,24 +6,94 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion } from 'motion/react';
-import { Package, Truck, CheckCircle2, Clock, MapPin, Search, ChevronRight, Box } from 'lucide-react';
+import { Package, Truck, CheckCircle2, Clock, MapPin, Search, Box, Loader2 } from 'lucide-react';
+import { supabase } from '../supabase';
+import { formatPrice as formatPriceUtil } from '../utils/format';
 
-export const OrderTracking: React.FC = () => {
-  const { orders } = useApp();
-  const [orderId, setOrderId] = useState('');
+export const OrderTracking: React.FC<{ initialOrderId?: string }> = ({ initialOrderId }) => {
+  const { orders, storeSettings, formatOrderNumber } = useApp();
+  const [orderId, setOrderId] = useState(initialOrderId || '');
   const [trackedOrder, setTrackedOrder] = useState<any>(null);
   const [error, setError] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+
+  const formatPrice = (amount: number) => formatPriceUtil(amount, storeSettings.currency);
+
+  const findOrder = async (query: string) => {
+    setIsSearching(true);
+    setError('');
+    
+    // 1. Try local state first
+    const local = orders.find(o => 
+      o.id.toLowerCase() === query.toLowerCase() || 
+      (o.orderNumber && `LG-${o.orderNumber}` === query) ||
+      (o.orderNumber && `#LG-${o.orderNumber}` === query)
+    );
+
+    if (local) {
+      setTrackedOrder(local);
+      setIsSearching(false);
+      return;
+    }
+
+    // 2. Query Supabase
+    try {
+      const orderRef = query.replace('#', '').replace('LG-', '');
+      const isUuid = query.length > 30; // rough check for UUID
+
+      let dbQuery = supabase
+        .from('orders')
+        .select(`
+          *,
+          order_items ( product_id, quantity, price )
+        `);
+
+      if (isUuid) {
+        dbQuery = dbQuery.eq('id', query);
+      } else if (!isNaN(parseInt(orderRef))) {
+        dbQuery = dbQuery.eq('order_number', parseInt(orderRef));
+      } else {
+        throw new Error('Invalid Reference Format');
+      }
+
+      const { data: dbOrder, error: dbError } = await dbQuery.single();
+
+      if (dbError || !dbOrder) {
+        throw new Error('Order not found');
+      }
+
+      setTrackedOrder({
+        id: dbOrder.id,
+        orderNumber: dbOrder.order_number,
+        customerId: dbOrder.profile_id,
+        customerName: dbOrder.customer_name,
+        total: parseFloat(dbOrder.total.toString()),
+        status: dbOrder.status as any,
+        createdAt: dbOrder.created_at,
+        items: (dbOrder as any).order_items?.map((i: any) => ({
+          productId: i.product_id,
+          quantity: i.quantity,
+          price: i.price
+        })) || []
+      });
+    } catch (err: any) {
+      setTrackedOrder(null);
+      setError('Order not found in our archive. Please verify your reference.');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (initialOrderId) {
+      findOrder(initialOrderId.toUpperCase().trim());
+    }
+  }, [initialOrderId]);
 
   const handleTrack = (e: React.FormEvent) => {
     e.preventDefault();
-    const order = orders.find(o => o.id.toLowerCase() === orderId.toLowerCase());
-    if (order) {
-      setTrackedOrder(order);
-      setError('');
-    } else {
-      setTrackedOrder(null);
-      setError('Order not found. Please check your ID and try again.');
-    }
+    if (!orderId.trim()) return;
+    findOrder(orderId.toUpperCase().trim());
   };
 
   const stages = [
@@ -53,17 +123,17 @@ export const OrderTracking: React.FC = () => {
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
               type="text" 
-              placeholder="ENTER ORDER ID (E.G. ORD-1001)"
-              className="w-full bg-accent/10 border border-accent/20 px-16 py-6 text-xs uppercase tracking-widest font-bold focus:border-ink outline-none transition-all placeholder:text-muted/30"
+              placeholder="ENTER ORDER REF (E.G. LG-1001)"
+              className="w-full bg-accent/10 px-16 py-6 text-xs uppercase tracking-widest font-bold outline-none transition-all placeholder:text-muted/30 rounded-none shadow-inner focus:shadow-xl focus:bg-white"
             />
           </div>
-          <button type="submit" className="bg-ink text-paper px-12 py-6 text-[10px] uppercase tracking-[0.4em] font-bold hover:bg-gold hover:text-ink transition-all shadow-xl">
-            TRACK
+          <button type="submit" disabled={isSearching} className="bg-ink text-paper px-12 py-6 text-[10px] uppercase tracking-[0.4em] font-bold hover:bg-gold hover:text-ink transition-all shadow-xl rounded-none disabled:opacity-50 flex items-center gap-3">
+            {isSearching ? <Loader2 size={14} className="animate-spin" /> : 'TRACK'}
           </button>
         </form>
 
         {error && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center p-8 border border-red-500/10 bg-red-500/5 text-red-500 text-[10px] uppercase font-bold tracking-widest">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center p-8 bg-red-500/5 text-red-500 text-[10px] uppercase font-bold tracking-widest rounded-none shadow-lg shadow-red-500/5">
             {error}
           </motion.div>
         )}
@@ -74,10 +144,10 @@ export const OrderTracking: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             className="space-y-12"
           >
-            <div className="flex justify-between items-end border-b border-accent/20 pb-8 font-bold uppercase tracking-widest">
+            <div className="flex justify-between items-end pb-8 font-bold uppercase tracking-widest">
               <div>
                 <p className="text-[10px] text-muted mb-2">Tracking Status</p>
-                <h3 className="text-2xl tracking-tighter text-ink">{trackedOrder.id}</h3>
+                <h3 className="text-2xl tracking-tighter text-ink">{formatOrderNumber(trackedOrder.orderNumber)}</h3>
               </div>
               <div className="text-right">
                 <p className="text-[10px] text-muted mb-2">Estimated Delivery</p>
@@ -87,7 +157,6 @@ export const OrderTracking: React.FC = () => {
 
             {/* Stepper */}
             <div className="relative">
-              {/* Line */}
               <div className="absolute left-[23px] top-4 bottom-4 w-px bg-accent/20" />
               <div 
                 className="absolute left-[23px] top-4 w-px bg-gold transition-all duration-1000" 
@@ -102,8 +171,8 @@ export const OrderTracking: React.FC = () => {
 
                   return (
                     <div key={stage.id} className="flex gap-10 relative z-10">
-                      <div className={`w-12 h-12 rounded-full border flex items-center justify-center transition-all duration-700 ${
-                        isCompleted ? 'bg-gold border-gold text-black shadow-[0_0_20px_rgba(212,175,55,0.3)]' : 'bg-paper border-accent/20 text-muted'
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-700 ${
+                        isCompleted ? 'bg-gold text-black shadow-[0_0_20px_rgba(212,175,55,0.3)]' : 'bg-paper shadow-inner text-muted'
                       }`}>
                         <Icon size={20} className={isCurrent ? 'animate-pulse' : ''} />
                       </div>
@@ -126,20 +195,34 @@ export const OrderTracking: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-accent/5 p-10 border border-accent/20 grid grid-cols-2 gap-10">
-               <div className="space-y-4">
-                  <h5 className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted">Shipped Via</h5>
-                  <div className="flex items-center gap-4">
-                     <div className="w-10 h-10 bg-white border border-accent/20 flex items-center justify-center font-bold italic text-ink">DHL</div>
-                     <p className="text-[10px] font-bold tracking-widest">Global Express Priority</p>
+            <div className="bg-accent/5 p-10 grid grid-cols-1 md:grid-cols-2 gap-10 shadow-2xl">
+               <div className="space-y-6">
+                  <h5 className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted">Order Payload</h5>
+                  <div className="space-y-3">
+                    {trackedOrder.items?.map((item: any, i: number) => (
+                      <div key={i} className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-ink">
+                        <span>Lashes x {item.quantity}</span>
+                        <span>{formatPrice(item.price * item.quantity)}</span>
+                      </div>
+                    ))}
+                    <div className="pt-4 shadow-[0_-1px_0_rgba(0,0,0,0.05)] flex justify-between items-center font-bold text-ink">
+                      <span className="text-[10px] uppercase tracking-[0.2em]">Grand Total</span>
+                      <span className="text-sm">{formatPrice(trackedOrder.total)}</span>
+                    </div>
                   </div>
                </div>
-               <div className="space-y-4">
-                  <h5 className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted">Destination</h5>
-                  <p className="text-[10px] font-bold tracking-widest leading-loose uppercase">
-                    123 Fashion Street, Suite 456<br />
-                    New York, NY 10001
-                  </p>
+               <div className="space-y-6">
+                  <h5 className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted">Atelier Logistics</h5>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                       <div className="w-12 h-12 bg-accent/10 rounded-none flex items-center justify-center font-bold italic text-ink shadow-sm text-xs">DHL</div>
+                       <p className="text-[10px] uppercase font-bold tracking-widest text-muted">Global Express Priority</p>
+                    </div>
+                    <p className="text-[10px] font-bold tracking-widest leading-loose uppercase text-ink">
+                      Secured Transit to Destination Atelier<br />
+                      Dispatch Center: Berlin Central
+                    </p>
+                  </div>
                </div>
             </div>
           </motion.div>

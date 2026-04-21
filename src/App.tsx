@@ -15,11 +15,15 @@ import { Footer } from './components/Footer';
 import { CookieBanner } from './components/CookieBanner';
 import { StaticPage } from './pages/StaticPage';
 
-type PageType = 'store' | 'product' | 'checkout' | 'admin' | 'tracking' | 'terms' | 'privacy' | 'shipping' | 'returns' | 'faq';
+import { Profile } from './pages/Profile';
+
+type PageType = 'store' | 'product' | 'checkout' | 'admin' | 'tracking' | 'profile' | 'terms' | 'privacy' | 'shipping' | 'returns' | 'faq';
 
 function AppContent() {
+  const { isAdmin, isInitialLoading } = useApp();
   const [currentPage, setCurrentPage] = useState<PageType>('store');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [trackedOrderId, setTrackedOrderId] = useState<string | null>(null);
 
   const navigateToProduct = (id: string) => {
     setSelectedProductId(id);
@@ -27,12 +31,39 @@ function AppContent() {
     window.scrollTo(0, 0);
   };
 
+  const navigateToTracking = (id: string) => {
+    setTrackedOrderId(id);
+    setCurrentPage('tracking');
+    window.scrollTo(0, 0);
+  };
+
   const navigateTo = (page: PageType) => {
+    if (page !== 'tracking') setTrackedOrderId(null);
     setCurrentPage(page);
     window.scrollTo(0, 0);
   };
 
+  React.useEffect(() => {
+    if (currentPage === 'admin' && !isAdmin) {
+      setCurrentPage('store');
+    }
+  }, [currentPage, isAdmin]);
+
+  React.useEffect(() => {
+    if (!isInitialLoading) {
+      const loader = document.getElementById('loader-wrapper');
+      if (loader) {
+        loader.classList.add('loaded');
+        // Optional: Remove from DOM after transition
+        setTimeout(() => {
+          loader.style.display = 'none';
+        }, 800);
+      }
+    }
+  }, [isInitialLoading]);
+
   if (currentPage === 'admin') {
+    if (!isAdmin) return null;
     return <AdminDashboard onNavigateBack={() => navigateTo('store')} />;
   }
 
@@ -43,6 +74,7 @@ function AppContent() {
         onAdminClick={() => navigateTo('admin')}
         onCartClick={() => navigateTo('checkout')}
         onTrackClick={() => navigateTo('tracking')}
+        onProfileClick={() => navigateTo('profile')}
       />
       
       <main className="flex-grow">
@@ -59,17 +91,24 @@ function AppContent() {
         )}
         
         {currentPage === 'checkout' && (
-          <Checkout onBack={() => navigateTo('store')} />
+          <Checkout 
+            onBack={() => navigateTo('store')} 
+            onSuccessRedirect={() => navigateTo('profile')}
+          />
         )}
         
+        {currentPage === 'profile' && (
+           <Profile onOrderClick={navigateToTracking} />
+        )}
+
         {currentPage === 'tracking' && (
-          <OrderTracking />
+          <OrderTracking initialOrderId={trackedOrderId || undefined} />
         )}
 
         {currentPage === 'terms' && (
            <StaticPage 
              title="Terms & Conditions" 
-             content={<p>These Terms and Conditions constitute a legally binding agreement between you and Lash Glaze Studio concerning your access to and use of the website as well as any other media form, media channel, mobile website or mobile application related, linked, or otherwise connected thereto. By accessing the site, you agree that you have read, understood, and agreed to be bound by all of these Terms and Conditions.</p>} 
+             content={<p>These Terms and Conditions constitute a legally binding agreement between you and Lash Glaze Strip Lashes concerning your access to and use of the website as well as any other media form, media channel, mobile website or mobile application related, linked, or otherwise connected thereto. By accessing the site, you agree that you have read, understood, and agreed to be bound by all of these Terms and Conditions.</p>} 
            />
         )}
         {currentPage === 'privacy' && (

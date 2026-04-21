@@ -20,16 +20,23 @@ export interface Product {
     colors?: string[];
     sizes?: string[];
   };
+  preOrderEnabled?: boolean;
+  preOrderEndsAt?: string;
+  preOrderPrice?: number;
+  limitedTimeEnabled?: boolean;
+  limitedTimeEndsAt?: string;
 }
 
 export interface Order {
   id: string;
+  orderNumber?: number;
   customerId: string;
   customerName: string;
   items: { productId: string; quantity: number; price: number }[];
   total: number;
   status: 'pending' | 'processed' | 'shipped' | 'out-for-delivery' | 'delivered' | 'cancelled';
   createdAt: string;
+  trackingNumber?: string;
 }
 
 export interface Customer {
@@ -58,6 +65,9 @@ export interface StoreSettings {
   name: string;
   currency: string;
   logo: string;
+  heroBannerUrl: string;
+  instagramUrl?: string;
+  tiktokUrl?: string;
   colors: {
     ink: string;
     paper: string;

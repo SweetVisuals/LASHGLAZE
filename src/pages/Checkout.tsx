@@ -6,18 +6,150 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trash2, ChevronLeft, CreditCard, Ship, Lock, CheckCircle2, AlertCircle, ShieldCheck, Beaker } from 'lucide-react';
+import { Trash2, ChevronLeft, CreditCard, Ship, Lock, CheckCircle2, AlertCircle, ShieldCheck, Beaker, Clock, Copy, Package } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
+import { formatPrice as formatPriceUtil } from '../utils/format';
+import { supabase } from '../supabase';
+
+// Initialize Stripe outside component to avoid recreating it
+const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLIC_KEY || '');
+
+const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatPrice }: { total: number, email: string, currency: string, onComplete: () => void, color: string, formatPrice: (n: number) => string }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!stripe || !elements) return;
+
+    setProcessing(true);
+    setError(null);
+    
+    try {
+      const cardElement = elements.getElement(CardElement);
+      if (!cardElement) throw new Error("Card element not found");
+
+      // 1. Create PaymentIntent via Edge Function
+      const currencyCode = currency === '£' ? 'gbp' : (currency === '$' ? 'usd' : 'eur');
+      const { data, error: funcError } = await supabase.functions.invoke('stripe-payment', {
+        body: { amount: total, currency: currencyCode, email: email }
+      });
+
+      if (funcError || !data?.clientSecret) {
+        throw new Error(data?.error || "Failed to initialize payment session");
+      }
+
+      // 2. Confirm Payment
+      const { paymentIntent, error: stripeError } = await stripe.confirmCardPayment(data.clientSecret, {
+        payment_method: {
+          card: cardElement,
+          billing_details: { email }
+        }
+      });
+
+      if (stripeError) {
+        throw new Error(stripeError.message);
+      }
+
+      if (paymentIntent?.status === 'succeeded') {
+        setProcessing(false);
+        onComplete();
+      } else {
+        throw new Error("Payment authorization incomplete");
+      }
+    } catch (err: any) {
+      console.error("Stripe Error:", err);
+      setError(err.message || "A secure connection error occurred.");
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <motion.form 
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      onSubmit={handleSubmit} 
+      className="space-y-8 mt-6 relative p-10 bg-paper shadow-[0_20px_50px_rgba(0,0,0,0.1)]"
+    >
+      <div className="absolute top-0 right-0 p-5 flex gap-2">
+         <ShieldCheck size={14} className="text-emerald-700" strokeWidth={2} />
+         <span className="text-[8px] uppercase font-bold tracking-[0.2em] text-emerald-700">Protected by Stripe</span>
+      </div>
+      
+      <div className="space-y-4">
+        <label className="block text-[9px] uppercase tracking-[0.3em] font-bold text-ink/40">Secure Payment Entry</label>
+        <div className="group transition-all duration-500">
+          <div className="p-5 bg-paper shadow-[inset_0_2px_10px_rgba(0,0,0,0.05)] focus-within:bg-paper focus-within:shadow-[inset_0_2px_20px_rgba(0,0,0,0.08)] transition-all duration-300">
+             <CardElement options={{ 
+                style: { 
+                  base: { 
+                    fontSize: '16px', 
+                    color: color, 
+                    fontFamily: '"Inter", system-ui, sans-serif', 
+                    letterSpacing: '0.025em',
+                    '::placeholder': { color: color + '99' },
+                    iconColor: color
+                  },
+                  invalid: { color: '#b91c1c', iconColor: '#b91c1c' }
+                } 
+             }} />
+          </div>
+        </div>
+      </div>
+
+      {error && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="text-red-700 text-[10px] font-bold uppercase tracking-widest bg-red-50 p-4 shadow-[4px_0_0_0_inset_#b91c1c] mt-4"
+        >
+          {error}
+        </motion.div>
+      )}
+      
+      <button 
+        type="submit" 
+        disabled={!stripe || processing}
+        className="w-full bg-ink text-paper hover:bg-ink/90 disabled:opacity-50 h-16 text-[10px] font-bold uppercase tracking-[0.4em] transition-all duration-500 shadow-2xl relative overflow-hidden group"
+      >
+        <span className="relative z-10">
+          {processing ? 'Processing Securely...' : `Confirm Payment • ${formatPrice(total)}`}
+        </span>
+        <div className="absolute inset-0 bg-paper/5 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000 skew-x-12" />
+      </button>
+      
+      <div className="flex justify-center gap-6 opacity-30 grayscale hover:grayscale-0 transition-all duration-500">
+        <div className="text-[8px] font-bold tracking-widest uppercase">Visa</div>
+        <div className="text-[8px] font-bold tracking-widest uppercase">Mastercard</div>
+        <div className="text-[8px] font-bold tracking-widest uppercase">Amex</div>
+      </div>
+    </motion.form>
+  );
+};
+
 
 interface CheckoutProps {
   onBack: () => void;
+  onSuccessRedirect?: () => void;
 }
 
-export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
-  const { cart, removeFromCart, updateCartQuantity, paymentMethods, shippingMethods, clearCart } = useApp();
-  const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const selectedShipping = shippingMethods.find(s => s.enabled) || shippingMethods[0];
-  const total = subtotal + (selectedShipping ? selectedShipping.price : 0);
-
+export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect }) => {
+  const { cart, removeFromCart, updateCartQuantity, paymentMethods, shippingMethods, clearCart, createOrder, storeSettings, isCustomerLoggedIn, formatOrderNumber } = useApp();
+  const formatPrice = (amount: number) => formatPriceUtil(amount, storeSettings.currency);
+  
+  const [customerInfo, setCustomerInfo] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    address: '',
+    city: '',
+    postalCode: ''
+  });
+  
   const [step, setStep] = useState(1);
   const [agreeTerms, setAgreeTerms] = useState(false);
   const [agreeData, setAgreeData] = useState(false);
@@ -25,6 +157,44 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
   const [show3DSecure, setShow3DSecure] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isError, setIsError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [isSubscription, setIsSubscription] = useState(false);
+  const [subscriptionInterval, setSubscriptionInterval] = useState<'fortnightly' | 'monthly'>('fortnightly');
+  const [createdOrder, setCreatedOrder] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
+  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+
+  const enabledPayments = [...paymentMethods.filter(p => p.enabled)].sort((a, b) => {
+    if (a.type === 'card') return -1;
+    if (b.type === 'card') return 1;
+    return 0;
+  });
+  
+  useEffect(() => {
+    // If no payment selected OR the selected one was disabled, auto-select first available
+    const currentIsDisabled = selectedPaymentId && !enabledPayments.find(p => p.id === selectedPaymentId);
+    if ((!selectedPaymentId || currentIsDisabled) && enabledPayments.length > 0) {
+      setSelectedPaymentId(enabledPayments[0].id);
+    }
+  }, [paymentMethods, selectedPaymentId, enabledPayments]);
+
+  useEffect(() => {
+    // Only auto-redirect if logged in, otherwise stay on success page to let guest save order number
+    if (isSuccess && onSuccessRedirect && isCustomerLoggedIn) {
+      const timer = setTimeout(() => {
+        onSuccessRedirect();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, onSuccessRedirect, isCustomerLoggedIn]);
+
+  const selectedShipping = shippingMethods.find(s => s.enabled) || shippingMethods[0];
+  
+  const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const subscriptionDiscount = isSubscription ? (subscriptionInterval === 'fortnightly' ? subtotal * 0.15 : subtotal * 0.10) : 0;
+  const finalSubtotal = subtotal - subscriptionDiscount;
+  const total = finalSubtotal + (selectedShipping ? selectedShipping.price : 0);
 
   const handleFinalize = () => {
     if (!agreeTerms || !agreeData) {
@@ -32,55 +202,155 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
       return;
     }
     setShowError(false);
+    
     setIsProcessing(true);
-    // Simulate init
+    // Simulate init for generic flows
     setTimeout(() => {
       setIsProcessing(false);
       setShow3DSecure(true);
     }, 1500);
   };
 
-  const handleApproveAuth = () => {
+  const handleApproveAuth = async () => {
     setShow3DSecure(false);
     setIsProcessing(true);
-    // Simulate payment confirm
-    setTimeout(() => {
+    
+    try {
+      const orderResult = await createOrder({
+        customer_name: `${customerInfo.firstName} ${customerInfo.lastName}`,
+        customer_email: customerInfo.email,
+        total: total,
+        items: cart.map(item => ({
+          product_id: item.id,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      if (orderResult) {
+        setCreatedOrder(orderResult);
+        setIsProcessing(false);
+        setIsSuccess(true);
+        clearCart();
+      } else {
+        setIsProcessing(false);
+        setIsError(true);
+        setErrorMessage('We encountered an issue while archiving your order data in our atelier. Your payment session has been suspended.');
+      }
+    } catch (err) {
+      console.error('Finalize error:', err);
       setIsProcessing(false);
-      setIsSuccess(true);
-      clearCart();
-    }, 2000);
+      setIsError(true);
+      setErrorMessage('A cryptographic synchronization error occurred. Please verify your credentials or contact concierge support.');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
-  if (isSuccess) {
+  if (isError) {
     return (
       <div className="bg-paper min-h-[80vh] flex flex-col items-center justify-center px-4 py-24 text-center">
         <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-2xl bg-paper p-12 lg:p-20 shadow-[0_50px_100px_rgba(0,0,0,0.2)] relative overflow-hidden rounded-none"
+        >
+          <div className="absolute top-0 left-0 right-0 h-2 bg-red-800" />
+          <AlertCircle size={48} className="mx-auto text-red-800 mb-8" strokeWidth={1} />
+          <h2 className="font-serif text-4xl lg:text-5xl italic text-ink mb-4">Order Unsuccessful</h2>
+          <p className="text-[10px] uppercase tracking-widest font-bold text-red-800 mb-8">Transaction Authorization Failed</p>
+          
+          <div className="bg-red-50/50 p-8 text-left space-y-4 mb-12 rounded-none shadow-[4px_0_0_0_inset_#991b1b]">
+            <h3 className="text-[9px] uppercase tracking-widest font-bold text-red-900 pb-2">Status Report</h3>
+            <p className="text-xs text-red-900/70 leading-relaxed font-bold">
+              {errorMessage || 'Your card issuer or payment provider declined the transaction. This can occasionally happen due to high-security filters or mismatching address logistics.'}
+            </p>
+          </div>
+          
+          <div className="flex flex-col gap-4">
+             <button 
+               onClick={() => { setIsError(false); setStep(1); }} 
+               className="luxury-button-filled w-full"
+             >
+               Review Logistics & Retry
+             </button>
+             <button onClick={onBack} className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted hover:text-ink transition-colors">Return to Atelier</button>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (isSuccess) {
+    const orderNum = createdOrder?.order_number ? formatOrderNumber(createdOrder.order_number) : '#LG-PENDING';
+    
+    const handleCopy = () => {
+      navigator.clipboard.writeText(orderNum);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+      <div className="bg-topbarBg min-h-[80vh] flex flex-col items-center justify-center px-4 py-24 text-center">
+        <motion.div 
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-2xl bg-white border border-accent/40 p-12 lg:p-20 shadow-2xl relative overflow-hidden"
+          className="max-w-2xl bg-topbarBg p-12 lg:p-20 shadow-[0_50px_100px_rgba(0,0,0,0.3)] relative overflow-hidden rounded-none"
         >
-          <div className="absolute top-0 left-0 right-0 h-2 bg-ink" />
-          <CheckCircle2 size={48} className="mx-auto text-ink mb-8" strokeWidth={1} />
-          <h2 className="font-serif text-4xl lg:text-5xl italic text-ink mb-4">Curation Confirmed</h2>
-          <p className="text-[10px] uppercase tracking-widest font-bold text-muted mb-12">Order #LGS-{Math.floor(Math.random() * 90000) + 10000}</p>
+          <div className="absolute top-0 left-0 right-0 h-2 bg-green-600" />
+          <CheckCircle2 size={48} className="mx-auto text-green-600 mb-8" strokeWidth={1} />
+          <h2 className="font-serif text-4xl lg:text-5xl italic text-topbarText mb-4">Order Confirmed</h2>
+          <p className="text-[10px] uppercase tracking-widest font-bold text-topbarText opacity-40 mb-2">Reference ID: {orderNum}</p>
           
-          <div className="border border-accent/40 bg-accent/5 p-8 text-left space-y-4 mb-12">
-            <h3 className="text-[9px] uppercase tracking-widest font-bold text-ink border-b border-accent/20 pb-4">Order Overview</h3>
+          <div className="flex items-center justify-center gap-2 mb-12">
+            <div className="h-[2px] w-4 bg-green-600 animate-pulse" />
+            <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-green-600/80">
+              {isCustomerLoggedIn ? 'Securing your atelier profile... redirected in 5s' : 'Order finalized successfully'}
+            </p>
+            <div className="h-[2px] w-4 bg-green-600 animate-pulse" />
+          </div>
+
+          {!isCustomerLoggedIn && (
+            <div className="bg-accent/10 p-10 mb-12 text-left relative overflow-hidden shadow-inner">
+               <div className="absolute top-0 right-0 p-4 opacity-5">
+                  <Package size={80} strokeWidth={1} />
+               </div>
+               <h3 className="text-[10px] uppercase tracking-widest font-bold text-topbarText mb-4">Guest Reference Required</h3>
+               <p className="text-xs text-topbarText/70 leading-relaxed max-w-sm mb-8">
+                 As you have checked out as a guest, please secure this reference number to track your journey in our logistics portal. This will not be accessible once you leave this session.
+               </p>
+               <div className="flex gap-4">
+                  <div className="bg-topbarBg shadow-[inset_0_2px_10px_rgba(0,0,0,0.1)] px-6 py-4 flex-grow font-mono text-sm font-bold flex items-center justify-between">
+                     {orderNum}
+                     <button 
+                       onClick={handleCopy}
+                       className="text-topbarText/40 hover:text-gold transition-colors ml-4"
+                     >
+                        {copied ? 'COPIED' : <Copy size={16} />}
+                     </button>
+                  </div>
+               </div>
+            </div>
+          )}
+          
+          <div className="bg-accent/5 p-8 text-left space-y-4 mb-12 rounded-none">
+            <h3 className="text-[9px] uppercase tracking-widest font-bold text-topbarText pb-4">Order Overview</h3>
             <div className="flex justify-between text-xs py-2">
-               <span className="text-muted">Total Paid</span>
-               <span className="font-bold text-ink border-b border-ink">€{total.toFixed(2)}</span>
+               <span className="text-topbarText/60">Total Paid</span>
+               <span className="font-bold text-topbarText">{formatPrice(total)}</span>
             </div>
             <div className="flex justify-between text-xs py-2">
-               <span className="text-muted">Fulfillment</span>
-               <span className="text-ink">Standard Processing (1-2 days)</span>
+               <span className="text-topbarText/60">Fulfillment</span>
+               <span className="text-topbarText">Standard Processing (1-2 days)</span>
             </div>
           </div>
           
-          <p className="text-sm text-muted leading-relaxed mb-12">
-            A secure confirmation has been dispatched to your email. You will receive cryptographic tracking details once your curation leaves our atelier.
+          <p className="text-sm text-topbarText/70 leading-relaxed mb-12">
+            A secure confirmation has been dispatched to your email. You will receive cryptographic tracking details once your order leaves our atelier.
           </p>
 
-          <button onClick={onBack} className="luxury-button-filled w-full">Return to Studio</button>
+          <button onClick={onBack} className="luxury-button-filled w-full font-bold">Return to Storefront</button>
         </motion.div>
       </div>
     );
@@ -91,7 +361,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
       <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-8 px-4 text-center bg-paper">
         <h2 className="font-serif text-5xl italic text-ink">Your bag is empty</h2>
         <p className="text-muted tracking-[0.4em] uppercase text-[10px] font-bold">Ready to find your perfect pair?</p>
-        <button onClick={onBack} className="luxury-button">Begin Curation</button>
+        <button onClick={onBack} className="luxury-button">Begin Shopping</button>
       </div>
     );
   }
@@ -112,42 +382,78 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
           <div className="space-y-20">
             <section>
               <div className="flex items-center gap-6 mb-10">
-                 <div className="w-10 h-10 border border-ink flex items-center justify-center text-xs font-bold bg-white italic serif">01</div>
+                 <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">01</div>
                  <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Contact Profile</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <input type="text" placeholder="First Name" className="bg-white border border-accent px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-ink transition-colors" />
-                <input type="text" placeholder="Last Name" className="bg-white border border-accent px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-ink transition-colors" />
-                <input type="email" placeholder="Email Address" className="bg-white border border-accent px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-ink transition-colors md:col-span-2" />
+                <input 
+                  type="text" 
+                  placeholder="First Name" 
+                  value={customerInfo.firstName}
+                  onChange={(e) => setCustomerInfo({...customerInfo, firstName: e.target.value})}
+                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
+                />
+                <input 
+                  type="text" 
+                  placeholder="Last Name" 
+                  value={customerInfo.lastName}
+                  onChange={(e) => setCustomerInfo({...customerInfo, lastName: e.target.value})}
+                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
+                />
+                <input 
+                  type="email" 
+                  placeholder="Email Address" 
+                  value={customerInfo.email}
+                  onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
+                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all md:col-span-2" 
+                />
               </div>
             </section>
 
             <section>
               <div className="flex items-center gap-6 mb-10">
-                 <div className="w-10 h-10 border border-ink flex items-center justify-center text-xs font-bold bg-white italic serif">02</div>
+                 <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">02</div>
                  <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Shipping Logistics</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <input type="text" placeholder="Street Address" className="bg-white border border-accent px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-ink transition-colors md:col-span-2" />
-                <input type="text" placeholder="Apt, Suite, Room (Optional)" className="bg-white border border-accent px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-ink transition-colors md:col-span-2" />
-                <input type="text" placeholder="City" className="bg-white border border-accent px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-ink transition-colors" />
-                <input type="text" placeholder="Postal Code" className="bg-white border border-accent px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none focus:border-ink transition-colors" />
+                <input 
+                   type="text" 
+                   placeholder="Street Address" 
+                   value={customerInfo.address}
+                   onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
+                   className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all md:col-span-2" 
+                />
+                <input type="text" placeholder="Apt, Suite, Room (Optional)" className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all md:col-span-2" />
+                <input 
+                  type="text" 
+                  placeholder="City" 
+                  value={customerInfo.city}
+                  onChange={(e) => setCustomerInfo({...customerInfo, city: e.target.value})}
+                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
+                />
+                <input 
+                  type="text" 
+                  placeholder="Postal Code" 
+                  value={customerInfo.postalCode}
+                  onChange={(e) => setCustomerInfo({...customerInfo, postalCode: e.target.value})}
+                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
+                />
               </div>
             </section>
 
             <section>
               <div className="flex items-center gap-6 mb-10">
-                 <div className="w-10 h-10 border border-ink flex items-center justify-center text-xs font-bold bg-white italic serif">03</div>
+                 <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">03</div>
                  <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Delivery Priority</h2>
               </div>
               <div className="space-y-4">
                 {shippingMethods.filter(s => s.enabled).map(method => (
-                  <label key={method.id} className="flex items-center justify-between p-6 bg-white border border-accent/40 cursor-pointer hover:border-ink transition-colors group">
+                  <label key={method.id} className="flex items-center justify-between p-6 bg-accent/5 cursor-pointer hover:shadow-xl transition-all group shadow-sm">
                     <div className="flex items-center gap-4">
                        <input type="radio" name="shipping" defaultChecked={method.id === selectedShipping?.id} className="accent-ink w-4 h-4" />
                        <span className="text-[10px] uppercase font-bold tracking-widest">{method.name}</span>
                     </div>
-                    <span className="text-sm font-bold text-ink">€{method.price.toFixed(2)}</span>
+                    <span className="text-sm font-bold text-ink">{formatPrice(method.price)}</span>
                   </label>
                 ))}
               </div>
@@ -155,13 +461,84 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
 
             <section>
               <div className="flex items-center gap-6 mb-10">
-                 <div className="w-10 h-10 border border-ink flex items-center justify-center text-xs font-bold bg-white italic serif">04</div>
+                 <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">04</div>
+                 <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Replenishment Profile</h2>
+              </div>
+              <div className="space-y-4">
+                 <div className={`transition-all rounded-none shadow-sm ${isSubscription ? 'bg-accent/10 shadow-xl' : 'bg-accent/5'}`}>
+                    <button 
+                      onClick={() => setIsSubscription(!isSubscription)}
+                      className={`w-full flex justify-between items-center px-8 py-6 transition-all rounded-none ${
+                        isSubscription ? 'bg-ink text-paper shadow-xl' : 'hover:bg-accent/10'
+                      }`}
+                    >
+                       <div className="flex items-center gap-4">
+                          <div className={`w-4 h-4 rounded-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.1)] ${isSubscription ? 'bg-paper shadow-none' : 'bg-paper/50'} flex items-center justify-center`}>
+                            {isSubscription && <div className="w-2 h-2 bg-ink rounded-full" />}
+                          </div>
+                          <div className="text-left">
+                            <span className="text-[10px] uppercase tracking-[0.2em] font-bold block">Subscribe & Save</span>
+                            <span className="text-[8px] uppercase tracking-widest opacity-50 block mt-1">Automated order delivered to your atelier</span>
+                          </div>
+                       </div>
+                       <div className="text-right">
+                          <span className={`text-[10px] font-mono font-bold italic ${isSubscription ? 'text-paper' : 'text-gold'}`}>Up to 15% Savings</span>
+                       </div>
+                    </button>
+
+                    <AnimatePresence>
+                      {isSubscription && (
+                        <motion.div 
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-8 pb-8 pt-4 space-y-6">
+                             <div className="grid grid-cols-2 gap-6">
+                                <button 
+                                  onClick={() => setSubscriptionInterval('fortnightly')}
+                                  className={`flex flex-col p-6 text-left transition-all rounded-none shadow-sm ${subscriptionInterval === 'fortnightly' ? 'bg-paper text-ink shadow-md' : 'bg-transparent opacity-60 hover:opacity-100'}`}
+                                >
+                                   <span className="text-[10px] uppercase tracking-tighter font-bold mb-2">Every 2 Weeks</span>
+                                   <span className="text-xs font-mono font-bold">15% Discount</span>
+                                   <span className="text-[8px] uppercase tracking-widest opacity-40 mt-2 italic">Priority Processing</span>
+                                </button>
+                                <button 
+                                  onClick={() => setSubscriptionInterval('monthly')}
+                                  className={`flex flex-col p-6 text-left transition-all rounded-none shadow-sm ${subscriptionInterval === 'monthly' ? 'bg-paper text-ink shadow-md' : 'bg-transparent opacity-60 hover:opacity-100'}`}
+                                >
+                                   <span className="text-[10px] uppercase tracking-tighter font-bold mb-2">Every 4 Weeks</span>
+                                   <span className="text-xs font-mono font-bold">10% Discount</span>
+                                   <span className="text-[8px] uppercase tracking-widest opacity-40 mt-2 italic">Standard Processing</span>
+                                </button>
+                             </div>
+                             <p className="text-[9px] text-muted italic serif max-w-md">
+                                Subscription members receive exclusive priority access to future drops and limited editions. Cancel or modify your cycle at any time via your customer profile.
+                             </p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                 </div>
+              </div>
+            </section>
+
+            <section>
+              <div className="flex items-center gap-6 mb-10">
+                 <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">05</div>
                  <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Financial</h2>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                 {paymentMethods.filter(p => p.enabled).map(p => (
-                   <button key={p.id} className="p-8 bg-white border border-accent/40 hover:border-ink transition-colors flex flex-col items-center gap-4 group">
-                      <div className="text-muted group-hover:text-ink transition-colors">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                 {enabledPayments.map(p => (
+                   <button 
+                     key={p.id} 
+                     onClick={() => setSelectedPaymentId(p.id)}
+                     className={`p-8 transition-all flex flex-col items-center gap-4 group shadow-sm hover:shadow-xl ${
+                       selectedPaymentId === p.id ? 'bg-ink text-paper shadow-xl' : 'bg-accent/5 hover:bg-accent/10'
+                     }`}
+                   >
+                      <div className={`transition-colors ${selectedPaymentId === p.id ? 'text-paper' : 'text-muted group-hover:text-ink'}`}>
                         {p.type === 'card' && <CreditCard size={20} />}
                         {p.type === 'paypal' && <Ship size={20} />}
                         {p.type === 'klarna' && <Lock size={20} />}
@@ -170,6 +547,65 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
                       <span className="text-[9px] uppercase font-bold tracking-[0.2em]">{p.name}</span>
                    </button>
                  ))}
+              </div>
+
+              {/* Dynamic Payment Method UI */}
+              <div className="bg-accent/5 p-6 shadow-inner min-h-[150px]">
+                 {selectedPaymentId && (
+                    <>
+                       {paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'paypal' && (
+                         <div className="flex flex-col items-center justify-center h-full">
+                           <div className="w-full max-w-sm">
+                             <PayPalScriptProvider options={{ clientId: (import.meta as any).env.VITE_PAYPAL_CLIENT_ID || "test", currency: storeSettings.currency === '£' ? 'GBP' : (storeSettings.currency === '$' ? 'USD' : 'EUR') }}>
+                               <PayPalButtons style={{ layout: "vertical", shape: "rect", color: "black" }} 
+                                 createOrder={(data, actions) => {
+                                   return actions.order.create({
+                                     intent: "CAPTURE",
+                                     purchase_units: [{ amount: { value: total.toString(), currency_code: storeSettings.currency === '£' ? 'GBP' : (storeSettings.currency === '$' ? 'USD' : 'EUR') } }]
+                                   });
+                                 }}
+                                 onApprove={async (data, actions) => {
+                                   if (actions.order) {
+                                     await actions.order.capture();
+                                     handleApproveAuth(); // trigger success
+                                   }
+                                 }}
+                               />
+                             </PayPalScriptProvider>
+                           </div>
+                         </div>
+                       )}
+
+                       {paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'klarna' && (
+                         <div className="flex flex-col items-center justify-center h-full text-center space-y-4 py-8">
+                            <Lock size={32} className="text-muted" strokeWidth={1} />
+                            <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-ink">Pay Later with Klarna</p>
+                            <p className="text-xs text-muted max-w-xs leading-relaxed">You will be redirected to Klarna to complete your purchase securely.</p>
+                         </div>
+                       )}
+                       
+                       {paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'card' && (
+                         <Elements stripe={stripePromise}>
+                           <StripeCheckoutForm 
+                             total={total} 
+                             email={customerInfo.email}
+                             currency={storeSettings.currency}
+                             onComplete={handleApproveAuth} 
+                             color={storeSettings.colors.ink} 
+                             formatPrice={formatPrice} 
+                           />
+                         </Elements>
+                       )}
+
+                       {paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'test' && (
+                         <div className="flex flex-col items-center justify-center h-full text-center py-8 bg-amber-50">
+                            <Beaker size={32} className="text-amber-800 mb-4" strokeWidth={1} />
+                            <p className="text-[10px] uppercase font-bold tracking-[0.2em] text-amber-900 pb-2">Developer Test Environment</p>
+                            <p className="text-xs text-amber-800/70 max-w-xs leading-relaxed">No real charges will be made. Click 'Finalize Order' to simulate a successful payment.</p>
+                         </div>
+                       )}
+                    </>
+                 )}
               </div>
             </section>
 
@@ -199,33 +635,41 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
               </label>
 
               {showError && (
-                 <div className="flex items-center gap-2 text-red-700 text-xs font-bold uppercase tracking-widest bg-red-50 p-4 border border-red-200">
+                 <div className="flex items-center gap-2 text-red-700 text-xs font-bold uppercase tracking-widest bg-red-50 p-4 rounded-none shadow-lg shadow-red-500/5">
                     <AlertCircle size={16} /> 
                     Please accept all required agreements to finalize.
                  </div>
               )}
             </div>
 
-            <button 
-              onClick={handleFinalize}
-              disabled={isProcessing}
-              className="w-full luxury-button-filled py-7 text-xs shadow-xl shadow-ink/5 disabled:opacity-50"
-            >
-              {isProcessing ? 'Processing Securely...' : 'Finalize Curation'}
-            </button>
+            {/* Hide main submit button if PayPal is selected since PayPal uses its own button, or if Stripe is loaded since it renders its own */}
+            {paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'paypal' && paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'card' && (
+              <button 
+                onClick={handleFinalize}
+                disabled={isProcessing}
+               className="w-full bg-ink text-paper py-7 text-xs font-bold uppercase tracking-[0.4em] shadow-[0_20px_50px_rgba(0,0,0,0.2)] disabled:opacity-50 border-none"
+              >
+                {isProcessing ? 'Initializing Payment...' : 'Finalize Order'}
+              </button>
+            )}
           </div>
         </div>
 
         {/* Right Column: Order Summary */}
         <div className="lg:col-span-12 xl:col-span-5">
-           <div className="sticky top-32 bg-accent/20 p-8 lg:p-12 space-y-12 border border-accent/40 shadow-sm shadow-accent/20">
+           <div className="sticky top-32 bg-accent/5 p-8 lg:p-12 space-y-12 shadow-2xl">
               <h2 className="font-serif text-3xl italic text-ink">Bag Summary</h2>
               
               <div className="space-y-10 max-h-[40vh] overflow-y-auto no-scrollbar pr-2">
                 {cart.map((item) => (
                   <div key={item.id} className="flex gap-8">
-                    <div className="w-24 aspect-[4/5] bg-white border border-accent/20 p-1 shrink-0">
-                      <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale-[10%]" />
+                    <div className="w-24 aspect-[4/5] bg-paper p-1 shrink-0 rounded-none shadow-xl relative">
+                      {item.preOrderEnabled && (
+                        <div className="absolute top-2 left-2 z-10 bg-gold text-paper px-2 py-0.5 text-[7px] font-bold uppercase tracking-widest">
+                          Pre
+                        </div>
+                      )}
+                      <img src={item.image} alt={item.name} className="w-full h-full object-cover grayscale-[10%] rounded-none" />
                     </div>
                     <div className="flex-grow flex flex-col justify-between py-1">
                       <div>
@@ -235,39 +679,63 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
                             <Trash2 size={16} />
                           </button>
                         </div>
-                        <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted mt-2">Glaze Series Profile</p>
+                        <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted mt-2">
+                          {item.preOrderEnabled ? (
+                            <span className="text-gold">Pre-order Edition</span>
+                          ) : 'Glaze Series Profile'}
+                        </p>
                       </div>
                       <div className="flex justify-between items-end">
-                        <div className="flex items-center gap-6 text-[11px] font-bold uppercase tracking-widest border border-accent px-4 py-2 bg-white">
-                          <button onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="text-muted hover:text-ink">-</button>
-                          <span>{item.quantity}</span>
-                          <button onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="text-muted hover:text-ink">+</button>
+                        <div className="flex items-center gap-6 text-[11px] font-bold uppercase tracking-widest px-4 py-2 bg-paper shadow-[0_5px_15px_rgba(0,0,0,0.05)]">
+                          <button onClick={() => updateCartQuantity(item.id, item.quantity - 1)} className="text-ink/40 hover:text-ink transition-all active:scale-90">-</button>
+                          <span className="text-ink w-4 text-center">{item.quantity}</span>
+                          <button onClick={() => updateCartQuantity(item.id, item.quantity + 1)} className="text-ink/40 hover:text-ink transition-all active:scale-90">+</button>
                         </div>
-                        <p className="text-sm font-bold text-ink">€{(item.price * item.quantity).toFixed(2)}</p>
+                        <p className="text-sm font-bold text-ink">{formatPrice(item.price * item.quantity)}</p>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-6 pt-12 border-t border-accent">
+              <div className="space-y-6 pt-12 shadow-[0_-1px_0_rgba(0,0,0,0.05)]">
                 <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] font-bold text-muted">
                    <span>Subtotal</span>
-                   <span className="text-ink">€{subtotal.toFixed(2)}</span>
+                   <span className="text-ink">{formatPrice(subtotal)}</span>
                 </div>
+                {isSubscription && (
+                  <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] font-bold text-gold">
+                    <span>Membership Discount</span>
+                    <span>-{formatPrice(subscriptionDiscount)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] font-bold text-muted">
                    <span>Priority Shipping</span>
-                   <span className="text-ink">€{selectedShipping?.price.toFixed(2)}</span>
+                   <span className="text-ink">{formatPrice(selectedShipping?.price || 0)}</span>
                 </div>
-                <div className="flex justify-between text-ink pt-6 border-t border-ink/5">
-                   <span className="text-xs uppercase tracking-[0.4em] font-bold">Total</span>
-                   <span className="text-2xl font-bold">€{total.toFixed(2)}</span>
+                <div className="flex justify-between text-ink p-6 bg-ink/5 mt-6 shadow-inner">
+                   <span className="text-xs uppercase tracking-[0.4em] font-bold">Total Due</span>
+                   <span className="text-2xl font-bold">{formatPrice(total)}</span>
                 </div>
               </div>
 
               <div className="flex items-center gap-3 text-[9px] uppercase tracking-[0.4em] text-muted justify-center font-bold">
                  <Lock size={12} /> Secure Encryption Active
               </div>
+
+              {cart.some(item => item.preOrderEnabled) && (
+                <div className="pt-6 mt-6 bg-gold/5 p-6 flex gap-4 items-start shadow-inner">
+                   <div className="w-8 h-8 rounded-full bg-gold/10 flex items-center justify-center shrink-0">
+                      <Clock size={14} className="text-gold" />
+                   </div>
+                   <div className="space-y-1">
+                      <p className="text-[9px] uppercase font-bold text-gold tracking-widest">Pre-order Notice</p>
+                      <p className="text-[8px] leading-relaxed text-muted uppercase tracking-widest italic">
+                        Your bag contains pre-order items. These will ship once the official window opens. See product pages for specific dates.
+                      </p>
+                   </div>
+                </div>
+              )}
            </div>
         </div>
       </div>
@@ -275,37 +743,63 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack }) => {
       {/* 3D Secure Verification Modal */}
       <AnimatePresence>
         {show3DSecure && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white max-w-md w-full p-8 shadow-2xl relative overflow-hidden flex flex-col"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-ink/40 backdrop-blur-md"
+              onClick={() => { setShow3DSecure(false); setIsProcessing(false); }}
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="bg-paper max-w-lg w-full shadow-[0_60px_120px_rgba(0,0,0,0.4)] relative overflow-hidden flex flex-col"
             >
-              <div className="text-center mb-8">
-                <ShieldCheck size={40} className="mx-auto text-ink mb-4" strokeWidth={1} />
-                <h3 className="font-serif text-2xl italic text-ink mb-2">3D Secure Verification</h3>
-                <p className="text-xs text-muted">Confirming with your bank</p>
-              </div>
-              
-              <div className="bg-accent/10 border border-accent/20 p-4 mb-8 text-center">
-                <p className="text-[10px] uppercase font-bold tracking-widest text-ink mb-1">Total Charge</p>
-                <p className="text-2xl font-bold font-mono">€{total.toFixed(2)}</p>
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gold overflow-hidden">
+                <motion.div 
+                  className="h-full bg-ink w-1/3"
+                  animate={{ x: ['-100%', '300%'] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                />
               </div>
 
-              <div className="flex flex-col gap-3">
-                 <button 
-                   onClick={handleApproveAuth}
-                   className="luxury-button-filled w-full font-bold"
-                 >
-                   Approve Authentication
-                 </button>
-                 <button 
-                   onClick={() => { setShow3DSecure(false); setIsProcessing(false); }}
-                   className="text-[10px] uppercase tracking-widest font-bold text-muted hover:text-red-700 transition-colors py-2"
-                 >
-                   Cancel Request
-                 </button>
+              <div className="p-12 text-center">
+                <div className="w-20 h-20 bg-accent/20 flex items-center justify-center mx-auto mb-8">
+                  <ShieldCheck size={32} className="text-ink" strokeWidth={1} />
+                </div>
+                
+                <h3 className="font-serif text-2xl italic text-ink mb-2">Secure Authentication</h3>
+                <p className="text-[9px] uppercase tracking-[0.3em] font-bold text-muted mb-8">Authorization Request Sent to Bank</p>
+                
+                <div className="bg-paper shadow-[inset_0_2px_15px_rgba(0,0,0,0.05)] p-6 mb-8">
+                  <p className="text-[8px] uppercase font-bold tracking-widest text-muted mb-1">Merchant</p>
+                  <p className="text-xs font-bold text-ink mb-4">Lash Glaze</p>
+                  <p className="text-[8px] uppercase font-bold tracking-widest text-muted mb-1">Amount Due</p>
+                  <p className="text-2xl font-bold font-serif italic">{formatPrice(total)}</p>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                   <button 
+                     onClick={handleApproveAuth}
+                     className="bg-ink text-paper py-5 text-[9px] font-bold uppercase tracking-[0.4em] hover:bg-ink/90 transition-all shadow-xl"
+                   >
+                     Verify Transaction
+                   </button>
+                   <button 
+                     onClick={() => { setShow3DSecure(false); setIsProcessing(false); }}
+                     className="text-[8px] uppercase tracking-[0.2em] font-bold text-muted hover:text-red-700 transition-colors py-2"
+                   >
+                     Decline & Return
+                   </button>
+                </div>
+
+                <div className="mt-8 flex items-center justify-center gap-4 border-t border-ink/5 pt-8">
+                   <span className="text-[8px] font-bold tracking-widest opacity-30">PCI DSS COMPLIANT</span>
+                   <div className="w-1 h-1 bg-ink/10 rounded-full" />
+                   <span className="text-[8px] font-bold tracking-widest opacity-30">TLS 1.3 ENCRYPTION</span>
+                </div>
               </div>
             </motion.div>
           </div>

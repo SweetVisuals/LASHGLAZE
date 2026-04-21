@@ -15,13 +15,13 @@ interface StoreProps {
 }
 
 export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
-  const { products } = useApp();
+  const { products, formatPrice, storeSettings } = useApp();
   const [filterType, setFilterType] = useState('All');
 
   return (
     <div className="pb-20 bg-paper">
       {/* Announcement Bar */}
-      <div className="bg-accent py-2 overflow-hidden whitespace-nowrap border-b border-ink/5">
+      <div className="bg-accent py-2 overflow-hidden whitespace-nowrap">
         <motion.div 
           animate={{ x: [0, -1000] }}
           transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
@@ -34,15 +34,15 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
 
       {/* Hero Section */}
       <section className="relative h-[80vh] flex items-center justify-center overflow-hidden bg-accent/10">
-        <div className="absolute inset-0 z-0 opacity-100 grayscale-[0.1]">
+        <div className="absolute inset-0 z-0 opacity-100">
           <img 
-            src="https://plus.unsplash.com/premium_photo-1677526496597-aa0f49053ce2?w=900&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8bWFrZXVwJTIwYmFja2dyb3VuZHxlbnwwfHwwfHx8MA%3D%3D" 
+            src={storeSettings.heroBannerUrl} 
             alt="Editorial Lash Hero"
             className="w-full h-full object-cover"
             referrerPolicy="no-referrer"
           />
-          <div className="absolute inset-0 bg-black/40" />
-          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-transparent to-paper" />
+          <div className="absolute inset-0 bg-black/[0.65]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-paper" />
         </div>
         
         <div className="relative z-10 text-center px-4 max-w-4xl">
@@ -66,17 +66,31 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.8 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-6"
+            className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <button 
-              onClick={() => document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth' })}
-              className="luxury-button-filled w-64 h-16 flex items-center justify-center border-none shadow-xl z-[60] relative"
-            >
-              Shop Collection
-            </button>
-            <div className="w-64 h-16 relative z-[60]">
-               <CountdownTimer expiry={new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)} />
-            </div>
+              <button 
+                onClick={() => document.getElementById('collection')?.scrollIntoView({ behavior: 'smooth' })}
+                className="w-64 h-16 flex items-center justify-center bg-white/10 backdrop-blur-2xl text-white text-[11px] tracking-[0.4em] uppercase font-bold shadow-[0_20px_50px_rgba(0,0,0,0.3)] hover:bg-white/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-500 rounded-none border-none z-[60] relative overflow-hidden group"
+              >
+                <div className="absolute top-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -left-full group-hover:animate-shine" />
+                Shop Collection
+              </button>
+              {(() => {
+                const productWithTimer = [...products]
+                  .sort((a, b) => new Date(b.id).getTime() - new Date(a.id).getTime()) // Assuming numeric IDs are timestamps or using created_at if available
+                  .find(p => p.limitedTimeEnabled && p.limitedTimeEndsAt);
+                
+                const expiry = productWithTimer?.limitedTimeEndsAt 
+                  ? new Date(productWithTimer.limitedTimeEndsAt) 
+                  : new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+
+                return (
+                  <CountdownTimer 
+                    expiry={expiry} 
+                    variant="button"
+                  />
+                );
+              })()}
           </motion.div>
         </div>
       </section>
@@ -103,10 +117,10 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
       </section>
 
       {/* Product Feed */}
-      <section id="collection" className="max-w-5xl mx-auto px-8 md:px-16 py-24 border-t border-accent/20">
+      <section id="collection" className="max-w-5xl mx-auto px-8 md:px-16 py-24">
         <div className="flex flex-col items-center mb-16 text-center">
-          <h2 className="font-serif text-4xl md:text-5xl text-ink italic mb-4">The Complete Edition</h2>
-          <p className="text-[10px] text-muted uppercase tracking-[0.3em] font-bold">Limited run curated package</p>
+          <h2 className="font-serif text-5xl md:text-7xl text-ink italic mb-6 tracking-tight">The Complete Edition</h2>
+          <p className="text-[10px] text-muted uppercase tracking-[0.5em] font-bold opacity-60">Limited run lash package</p>
         </div>
 
         <div className="flex justify-center">
@@ -122,8 +136,34 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
               className="group cursor-pointer w-full max-w-xl"
               onClick={() => onProductClick(product.id)}
             >
-              <div className="relative aspect-video overflow-hidden bg-accent/20 mb-6 p-1 border border-accent">
-                <div className="w-full h-full overflow-hidden bg-white">
+              <div className="relative aspect-video overflow-hidden bg-accent/20 mb-6 p-2 rounded-none">
+                <div className="w-full h-full overflow-hidden bg-white rounded-none relative">
+                   {(() => {
+                     const now = new Date();
+                     const preOrderEndsAt = product.preOrderEndsAt ? new Date(product.preOrderEndsAt) : null;
+                     const limitedTimeEndsAt = product.limitedTimeEndsAt ? new Date(product.limitedTimeEndsAt) : null;
+
+                     const isPreOrder = !!(product.preOrderEnabled && preOrderEndsAt && now < preOrderEndsAt);
+                     const isLimited = !!(product.limitedTimeEnabled && limitedTimeEndsAt && now < limitedTimeEndsAt && (!preOrderEndsAt || now > preOrderEndsAt));
+                     const isReserve = !!(product.limitedTimeEnabled && limitedTimeEndsAt && now >= limitedTimeEndsAt);
+
+                     if (isPreOrder) return (
+                        <div className="absolute top-4 left-4 z-10 bg-gold text-paper px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] shadow-lg">
+                          Pre-order
+                        </div>
+                     );
+                     if (isLimited) return (
+                        <div className="absolute top-4 left-4 z-10 bg-red-500 text-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] shadow-lg animate-pulse">
+                          Limited Time
+                        </div>
+                     );
+                     if (isReserve) return (
+                        <div className="absolute top-4 left-4 z-10 bg-blue-500 text-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] shadow-lg">
+                          Reserve Order
+                        </div>
+                     );
+                     return null;
+                   })()}
                   <img 
                     src={product.image} 
                     alt={product.name}
@@ -131,7 +171,7 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
                     referrerPolicy="no-referrer"
                   />
                 </div>
-                <button className="hidden md:block absolute bottom-4 left-4 right-4 bg-ink text-paper py-4 text-[10px] font-bold uppercase tracking-[0.2em] opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-2 group-hover:translate-y-0">
+                <button className="hidden md:block absolute bottom-6 left-6 right-6 bg-white text-black py-4 text-[10px] font-bold uppercase tracking-[0.2em] transform translate-y-4 opacity-0 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 rounded-none shadow-2xl hover:bg-gold hover:text-black">
                   Select Package
                 </button>
               </div>
@@ -140,7 +180,14 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
                 <div className="flex items-center justify-center gap-4">
                    <span className="text-[10px] uppercase tracking-widest text-muted">Glaze Series Base</span>
                    <span className="text-xs text-muted">|</span>
-                   <p className="text-sm text-ink font-bold leading-none">€{product.price.toFixed(2)}</p>
+                   <p className="text-sm text-ink font-bold leading-none">
+                     {product.preOrderEnabled && product.preOrderPrice ? (
+                        <>
+                          <span className="text-gold">{formatPrice(product.preOrderPrice)}</span>
+                          <span className="ml-2 text-[10px] text-muted line-through opacity-50">{formatPrice(product.price)}</span>
+                        </>
+                     ) : formatPrice(product.price)}
+                   </p>
                 </div>
               </div>
             </motion.div>

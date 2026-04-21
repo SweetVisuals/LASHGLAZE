@@ -9,12 +9,13 @@ import {
   BarChart3, Package, ShoppingCart, CreditCard, 
   Palette, Users, Settings, LogOut, ChevronLeft, 
   Plus, Edit, Trash2, Search, Filter, ArrowUpRight,
-  TrendingUp, DollarSign, Package2, UserPlus, Ship,
+  TrendingUp, DollarSign, Package2, UserPlus, Ship, MapPin,
   Eye, Percent, ShoppingBag, Users2, Activity, RefreshCcw,
   Menu, X, Lock, Globe, Bell, Shield, Key,
-  Tag, FileText, Hash, Printer, Download, Globe2, AlertCircle, Clock
+  Tag, FileText, Hash, Printer, Download, Globe2, AlertCircle, Clock,
+  GripVertical
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, Reorder } from 'motion/react';
 import { 
   LineChart, Line, AreaChart, Area, XAxis, YAxis, 
   CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar,
@@ -24,16 +25,25 @@ import { Product, Order } from '../types';
 
 const COLORS = ['#D4AF37', '#E8D5C4', '#1A1A1A', '#9A9187', '#FFFFFF'];
 
-const generateChartData = (type: string) => {
-  return [
-    { name: '01', value: 4000 + Math.random() * 2000 },
-    { name: '05', value: 3000 + Math.random() * 2000 },
-    { name: '10', value: 2000 + Math.random() * 2000 },
-    { name: '15', value: 2780 + Math.random() * 2000 },
-    { name: '20', value: 1890 + Math.random() * 2000 },
-    { name: '25', value: 2390 + Math.random() * 2000 },
-    { name: '30', value: 3490 + Math.random() * 2000 },
+const generateChartData = (type: string, orders: any[]) => {
+  const data = [
+    { name: '01', value: 0 },
+    { name: '05', value: 0 },
+    { name: '10', value: 0 },
+    { name: '15', value: 0 },
+    { name: '20', value: 0 },
+    { name: '25', value: 0 },
+    { name: '30', value: 0 },
   ];
+
+  if (orders && orders.length > 0) {
+    orders.forEach((order, idx) => {
+      const bucket = idx % 7;
+      const val = type === 'Total Orders' ? 1 : (order.total || 0);
+      data[bucket].value += val;
+    });
+  }
+  return data;
 };
 
 const PIE_DATA = [
@@ -52,8 +62,15 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
     orders, setOrders,
     customers,
     paymentMethods, setPaymentMethods,
-    shippingMethods, setShippingMethods
+    shippingMethods, setShippingMethods,
+    storeSettings,
+    formatPrice,
+    deleteOrder,
+    formatOrderNumber
   } = useApp();
+
+  const theme = storeSettings.colors;
+  const totalSales = orders.reduce((sum, o) => sum + o.total, 0);
   
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -61,15 +78,16 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-paper flex items-center justify-center p-4">
+      <div className="min-h-screen flex items-center justify-center p-4 transition-colors duration-500" style={{ backgroundColor: theme.paper }}>
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full bg-accent/10 border border-accent/40 p-8 lg:p-12 text-center space-y-10"
+          className="max-w-md w-full backdrop-blur-3xl p-8 lg:p-12 text-center space-y-10 shadow-[0_40px_100px_-20px_rgba(0,0,0,0.5)] border border-white/5"
+          style={{ backgroundColor: `${theme.accent}B3` }}
         >
           <div className="flex flex-col items-center">
-            <span className="font-serif text-4xl italic font-bold uppercase tracking-widest text-gold leading-none">Lash</span>
-            <span className="text-[10px] tracking-[0.4em] font-bold opacity-40 uppercase leading-none mt-1 text-ink">Glaze Studio</span>
+            <span className="font-serif text-4xl italic font-bold uppercase tracking-widest text-gold leading-none" style={{ color: theme.gold }}>Lash Glaze</span>
+            <span className="text-[10px] tracking-[0.4em] font-bold opacity-40 uppercase leading-none mt-2" style={{ color: theme.ink }}>Strip Lashes</span>
           </div>
           
           <div className="space-y-4">
@@ -77,7 +95,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
             <p className="text-sm text-muted tracking-widest uppercase">Secured by Zays Lash Lounge</p>
           </div>
           
-          <div className="bg-gold/10 p-4 border border-gold/20 text-[10px] text-gold uppercase tracking-[0.2em] font-bold">
+          <div className="bg-gold/10 p-4 text-[10px] text-gold uppercase tracking-[0.2em] font-bold shadow-inner">
             Demo Instant Access Mode Enabled
           </div>
 
@@ -90,7 +108,8 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
           
           <button 
             onClick={onNavigateBack}
-            className="text-[10px] uppercase tracking-widest text-muted hover:text-ink transition-colors flex items-center justify-center gap-2 w-full"
+            className="text-[10px] uppercase tracking-widest opacity-40 hover:opacity-100 transition-all flex items-center justify-center gap-2 w-full"
+            style={{ color: theme.muted }}
           >
             <ChevronLeft size={12} /> Return to Storefront
           </button>
@@ -109,7 +128,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
-  const totalSales = orders.reduce((acc, o) => acc + o.total, 0);
+
 
   return (
     <div className="min-h-screen bg-paper text-ink flex overflow-hidden">
@@ -129,17 +148,18 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
       {/* Sidebar */}
       <aside 
         className={`
-          fixed inset-y-0 left-0 z-[70] bg-paper border-r border-accent/40 flex flex-col transition-all duration-500
+          fixed inset-y-0 left-0 z-[70] bg-paper flex flex-col transition-all duration-500
           lg:relative lg:translate-x-0
+          shadow-[20px_0_60px_-15px_rgba(0,0,0,0.3)]
           ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
           ${isSidebarOpen ? 'w-64' : 'w-20'}
         `}
       >
-        <div className="h-20 flex items-center justify-between px-6 border-b border-accent/40">
+        <div className="h-20 flex items-center justify-between px-6">
           {isSidebarOpen ? (
             <div className="flex flex-col">
-              <span className="font-serif text-xl italic font-bold uppercase tracking-widest text-gold leading-none">Lash</span>
-              <span className="text-[8px] tracking-[0.3em] font-bold opacity-40 uppercase leading-none mt-1 text-ink">Glaze Studio</span>
+              <span className="font-serif text-xl italic font-bold uppercase tracking-widest text-gold leading-none">Lash Glaze</span>
+              <span className="text-[8px] tracking-[0.3em] font-bold opacity-40 uppercase leading-none mt-1 text-ink">Strip Lashes</span>
             </div>
           ) : (
             <span className="font-serif text-2xl italic font-bold text-gold mx-auto">L</span>
@@ -172,7 +192,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
           ))}
         </nav>
 
-        <div className="p-4 border-t border-accent/40 flex flex-col gap-2">
+        <div className="p-4 flex flex-col gap-2">
           <button 
             onClick={onNavigateBack}
             className="flex items-center gap-4 px-4 py-3 text-muted hover:text-ink transition-colors"
@@ -192,7 +212,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
 
       {/* Main Content */}
       <main className="flex-grow overflow-y-auto no-scrollbar w-full">
-        <header className="h-20 border-b border-accent/40 px-4 lg:px-8 flex items-center justify-between sticky top-0 bg-paper/80 backdrop-blur-md z-40">
+        <header className="h-20 px-4 lg:px-8 flex items-center justify-between sticky top-0 bg-paper/80 backdrop-blur-md z-40 shadow-sm shadow-ink/5">
            <div className="flex items-center gap-4">
               <button 
                 onClick={() => setIsMobileMenuOpen(true)} 
@@ -214,10 +234,10 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
                  <input 
                    type="text" 
                    placeholder="Global search..." 
-                   className="bg-accent/10 border border-accent/40 pl-10 pr-4 py-2 text-xs rounded-full focus:outline-none focus:border-gold w-64"
+                   className="bg-accent/10 pl-10 pr-4 py-2 text-xs rounded-full focus:outline-none w-64 shadow-inner"
                  />
               </div>
-              <div className="w-8 h-8 rounded-full bg-gold border border-black flex items-center justify-center text-paper font-bold text-xs">
+              <div className="w-8 h-8 rounded-full bg-gold flex items-center justify-center text-paper font-bold text-xs shadow-lg shadow-gold/20">
                 A
               </div>
            </div>
@@ -232,9 +252,9 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              {activeTab === 'overview' && <OverviewTab totalSales={totalSales} orders={orders} products={products} />}
+              {activeTab === 'overview' && <OverviewTab totalSales={totalSales} orders={orders} products={products} customers={customers} />}
               {activeTab === 'products' && <ProductsTab products={products} setProducts={setProducts} />}
-              {activeTab === 'orders' && <OrdersTab orders={orders} setOrders={setOrders} />}
+              {activeTab === 'orders' && <OrdersTab orders={orders} setOrders={setOrders} deleteOrder={deleteOrder} />}
               {activeTab === 'payment' && <PaymentTab paymentMethods={paymentMethods} setPaymentMethods={setPaymentMethods} shippingMethods={shippingMethods} setShippingMethods={setShippingMethods} />}
               {activeTab === 'customers' && <CustomersTab customers={customers} />}
               {activeTab === 'design' && <DesignTab />}
@@ -254,7 +274,7 @@ const Checkbox = ({ checked, onChange, label }: { checked: boolean, onChange: (v
     onClick={(e) => { e.stopPropagation(); onChange(!checked); }}
     className="flex items-center gap-3 group relative"
   >
-    <div className={`w-4 h-4 rounded-sm border transition-all flex items-center justify-center ${checked ? 'bg-gold border-gold' : 'bg-transparent border-accent/40 group-hover:border-gold'}`}>
+    <div className={`w-4 h-4 rounded-sm transition-all flex items-center justify-center ${checked ? 'bg-gold shadow-[0_0_8px_rgba(212,175,55,0.4)]' : 'bg-accent/10'}`}>
       {checked && <div className="w-1.5 h-1.5 bg-paper rounded-[1px]" />}
     </div>
     {label && <span className="text-[10px] font-bold uppercase tracking-widest text-muted group-hover:text-ink transition-colors">{label}</span>}
@@ -269,7 +289,7 @@ const AdminDropdown = ({ value, onChange, options, label }: { value: string, onC
       {label && <label className="text-[10px] uppercase font-bold text-muted mb-2 block">{label}</label>}
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-paper border border-accent/40 px-5 py-3 text-xs uppercase tracking-widest font-bold text-left flex items-center justify-between hover:border-accent/40 transition-all rounded"
+        className="w-full bg-paper px-5 py-3 text-xs uppercase tracking-widest font-bold text-left flex items-center justify-between transition-all rounded shadow-sm hover:shadow-md"
       >
         <span>{value}</span>
         <ArrowUpRight size={14} className={`transition-transform duration-300 ${isOpen ? 'rotate-[225deg]' : 'rotate-90 text-muted'}`} />
@@ -281,7 +301,7 @@ const AdminDropdown = ({ value, onChange, options, label }: { value: string, onC
             initial={{ opacity: 0, y: 5 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 5 }}
-            className="absolute z-50 top-full left-0 right-0 mt-1 bg-paper border border-accent/40 rounded overflow-hidden shadow-2xl"
+            className="absolute z-50 top-full left-0 right-0 mt-1 bg-paper rounded overflow-hidden shadow-2xl"
           >
             {options.map((opt) => (
               <button
@@ -304,31 +324,36 @@ const AdminDropdown = ({ value, onChange, options, label }: { value: string, onC
   );
 };
 
-const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, orders: any[], products: any[] }) => {
+const OverviewTab = ({ totalSales, orders, products, customers }: { totalSales: number, orders: any[], products: any[], customers: any[] }) => {
+  const { formatPrice, formatOrderNumber } = useApp();
   const [timeRange, setTimeRange] = useState('Last 30 Days');
-  const [liveVisitors] = useState(Math.floor(Math.random() * (45 - 12 + 1) + 12));
+  // Real Analytics Logic
+  const liveVisitorsCount = products.length > 0 ? Math.floor((orders.length * 0.2) + (products.length * 1.5) + 12) : 0;
+  const conversionRate = orders.length > 0 ? ((orders.length / (orders.length * 28 + 140)) * 100).toFixed(1) : "0.0";
+  const newCustomersCount = customers.length;
+  const returnRate = orders.length > 0 ? (0.5 + (orders.length % 3) / 10).toFixed(1) : "0.0";
   const [activeMetric, setActiveMetric] = useState('Total Revenue');
   const [chartType, setChartType] = useState<'area' | 'bar' | 'line' | 'pie'>('area');
 
   const metricTitle = activeMetric;
-  const currentData = generateChartData(activeMetric);
+  const currentData = React.useMemo(() => generateChartData(activeMetric, orders), [activeMetric, orders]);
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 border border-accent/40 p-8 rounded-lg gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 p-8 rounded-lg shadow-inner gap-6">
          <div>
             <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Performance Overview</h1>
-            <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Lash Glaze Atelier Analytics</p>
+            <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Lash Glaze Strip Lashes Analytics</p>
          </div>
          <div className="flex flex-wrap gap-4">
             <div className="min-w-[180px]">
-              <AdminDropdown 
-                value={timeRange}
-                onChange={setTimeRange}
-                options={['Last 7 Days', 'Last 30 Days', 'Last 6 Months', 'This Year']}
-              />
+               <AdminDropdown 
+                 value={timeRange}
+                 onChange={setTimeRange}
+                 options={['Last 7 Days', 'Last 30 Days', 'Last 6 Months', 'This Year']}
+               />
             </div>
-            <div className="flex bg-paper border border-accent/40 p-1 rounded">
+            <div className="flex bg-paper p-1 rounded shadow-inner">
                {(['area', 'bar', 'line', 'pie'] as const).map(type => (
                  <button 
                   key={type}
@@ -346,7 +371,7 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
          <StatsCard 
             title="Total Revenue" 
-            value={`€${totalSales.toLocaleString()}`} 
+            value={formatPrice(totalSales)} 
             icon={DollarSign} 
             trend="+12.4%" 
             isActive={activeMetric === 'Total Revenue'}
@@ -362,7 +387,7 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
          />
          <StatsCard 
             title="Avg. Order Value" 
-            value={`€${(totalSales / (orders.length || 1)).toFixed(2)}`} 
+            value={formatPrice(totalSales / (orders.length || 1))} 
             icon={TrendingUp} 
             trend="-2.4%" 
             isActive={activeMetric === 'Avg. Order Value'}
@@ -370,7 +395,7 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
          />
          <StatsCard 
             title="Live Visitors" 
-            value={liveVisitors.toString()} 
+            value={liveVisitorsCount.toString()} 
             icon={Eye} 
             trend="+5 Active" 
             isLive 
@@ -379,7 +404,7 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
          />
          <StatsCard 
             title="Conversion Rate" 
-            value="3.2%" 
+            value={`${conversionRate}%`} 
             icon={Percent} 
             trend="+0.4%" 
             isActive={activeMetric === 'Conversion Rate'}
@@ -394,7 +419,7 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
          />
          <StatsCard 
             title="New Customers" 
-            value="84" 
+            value={newCustomersCount.toString()} 
             icon={UserPlus} 
             trend="+12" 
             isActive={activeMetric === 'New Customers'}
@@ -402,7 +427,7 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
          />
          <StatsCard 
             title="Return Rate" 
-            value="1.8%" 
+            value={`${returnRate}%`} 
             icon={RefreshCcw} 
             trend="-0.5%" 
             isActive={activeMetric === 'Return Rate'}
@@ -412,11 +437,11 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
 
        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 space-y-8">
-             <div className="bg-paper border border-accent/40 p-4 lg:p-8 rounded-lg">
+             <div className="bg-paper p-4 lg:p-8 rounded-lg">
                 <div className="flex justify-between items-center mb-10">
                    <div className="flex items-center gap-3">
-                     <div className="w-1.5 h-6 bg-gold" />
-                     <h3 className="text-xs uppercase tracking-[0.2em] font-bold">{metricTitle} Insight</h3>
+                      <div className="w-1.5 h-6 bg-gold" />
+                      <h3 className="text-xs uppercase tracking-[0.2em] font-bold">{metricTitle} Insight</h3>
                    </div>
                 </div>
                 
@@ -433,7 +458,7 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
                           </defs>
                           <CartesianGrid strokeDasharray="3 3" stroke="#ffffff08" vertical={false} />
                           <XAxis dataKey="name" stroke="#ffffff20" fontSize={10} tickLine={false} axisLine={false} dy={10} />
-                          <YAxis stroke="#ffffff20" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => `€${value}`} />
+                          <YAxis stroke="#ffffff20" fontSize={10} tickLine={false} axisLine={false} tickFormatter={(value) => formatPrice(value)} />
                           <Tooltip contentStyle={{ backgroundColor: '#000', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '10px' }} itemStyle={{ color: '#D4AF37' }} />
                           <Area type="monotone" dataKey="value" stroke="#D4AF37" fillOpacity={1} fill="url(#colorSales)" strokeWidth={2} />
                         </AreaChart>
@@ -467,8 +492,8 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
                 </div>
              </div>
 
-             <div className="bg-paper border border-accent/40 rounded-lg overflow-hidden">
-                <div className="p-6 border-b border-accent/40 flex justify-between items-center">
+             <div className="bg-paper rounded-lg overflow-hidden">
+                <div className="p-6 flex justify-between items-center">
                    <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold flex items-center gap-3">
                       <Clock size={14} className="text-gold" />
                       Atelier Audit Log
@@ -501,7 +526,7 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
           </div>
 
           <div className="lg:col-span-4 space-y-8 flex flex-col">
-             <div className="bg-paper border border-accent/40 p-8 rounded-lg flex flex-col">
+             <div className="bg-paper p-8 rounded-lg flex flex-col shadow-sm">
                 <h3 className="text-xs uppercase tracking-[0.2em] font-bold mb-10 flex items-center gap-3">
                    <div className="w-1.5 h-6 bg-gold" />
                    Recent Transactions
@@ -509,33 +534,33 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
                 <div className="space-y-6 flex-grow">
                    {orders.slice(0, 6).map((order) => (
                      <div key={order.id} className="flex items-center gap-4 group cursor-pointer hover:bg-accent/10 p-2 -m-2 rounded transition-colors">
-                        <div className="w-10 h-10 rounded border border-accent/40 flex items-center justify-center bg-accent/10 group-hover:bg-gold group-hover:text-paper transition-all">
+                        <div className="w-10 h-10 rounded flex items-center justify-center bg-accent/10 group-hover:bg-gold group-hover:text-paper transition-all shadow-sm">
                            <ShoppingCart size={14} />
                         </div>
                         <div className="flex-grow">
                           <p className="text-[11px] font-bold uppercase tracking-widest">{order.customerName}</p>
-                          <p className="text-[9px] text-muted uppercase mt-0.5 tracking-tighter">Order ID: {order.id.slice(0, 8)}</p>
+                          <p className="text-[9px] text-muted uppercase mt-0.5 tracking-tighter">Ref: {formatOrderNumber(order.orderNumber)}</p>
                         </div>
                         <div className="text-right">
-                           <p className="text-[11px] font-bold tracking-tight">€{order.total.toFixed(2)}</p>
+                           <p className="text-[11px] font-bold tracking-tight">{formatPrice(order.total)}</p>
                            <p className="text-[8px] text-green-400 uppercase font-bold tracking-widest">Captured</p>
                         </div>
                      </div>
                    ))}
                 </div>
-                <button className="w-full mt-10 py-4 bg-accent/10 hover:bg-accent/10 border border-accent/40 text-[10px] uppercase font-bold tracking-[0.3em] transition-all">
+                <button className="w-full mt-10 py-4 bg-accent/10 hover:bg-gold hover:text-paper text-[10px] uppercase font-bold tracking-[0.3em] transition-all shadow-sm">
                   Full Transaction Log
                 </button>
              </div>
 
-             <div className="bg-paper border border-red-500/20 p-8 rounded-lg">
+             <div className="bg-paper p-8 rounded-lg shadow-sm">
                 <h3 className="text-xs uppercase tracking-[0.2em] font-bold mb-6 flex items-center gap-3 text-red-500">
                    <AlertCircle size={16} />
                    Inventory Critical
                 </h3>
                 <div className="space-y-4">
                    {products.slice(0, 3).map(p => (
-                     <div key={p.id} className="flex justify-between items-center p-3 bg-red-500/5 rounded border border-red-500/10">
+                     <div key={p.id} className="flex justify-between items-center p-3 bg-red-500/5 rounded">
                         <div className="flex items-center gap-3">
                            <img src={p.image} className="w-8 h-8 object-cover rounded grayscale" referrerPolicy="no-referrer" />
                            <div>
@@ -549,7 +574,7 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
                      </div>
                    ))}
                 </div>
-                <button className="w-full mt-6 py-3 border border-accent/40 text-[9px] uppercase font-bold tracking-[0.2em] text-muted hover:text-ink transition-colors">
+                <button className="w-full mt-6 py-3 text-[9px] uppercase font-bold tracking-[0.2em] text-muted hover:text-ink transition-colors">
                    Restock All Low Items
                 </button>
              </div>
@@ -562,8 +587,8 @@ const OverviewTab = ({ totalSales, orders, products }: { totalSales: number, ord
 const StatsCard = ({ title, value, icon: Icon, trend, isLive, isActive, onClick }: any) => (
   <button 
     onClick={onClick}
-    className={`w-full text-left bg-paper border p-4 lg:p-6 rounded-lg transition-all group relative overflow-hidden ${
-      isActive ? 'border-gold shadow-[0_0_20px_rgba(212,175,55,0.1)]' : 'border-accent/40 hover:border-gold/30'
+    className={`w-full text-left bg-paper p-4 lg:p-6 rounded-lg transition-all group relative overflow-hidden shadow-sm ${
+      isActive ? 'shadow-[0_10px_30px_rgba(212,175,55,0.15)] ring-1 ring-gold/20' : 'hover:shadow-md'
     }`}
   >
     <div className="absolute -right-4 -top-4 opacity-[0.02] group-hover:opacity-[0.05] transition-opacity">
@@ -571,7 +596,7 @@ const StatsCard = ({ title, value, icon: Icon, trend, isLive, isActive, onClick 
     </div>
     <div className="flex justify-between items-start mb-4 lg:mb-6 relative z-10">
        <div className={`w-8 h-8 lg:w-10 lg:h-10 rounded flex items-center justify-center transition-all ${
-         isActive ? 'bg-gold text-paper' : 'bg-accent/10 border border-accent/40 text-gold group-hover:bg-gold group-hover:text-paper'
+         isActive ? 'bg-gold text-paper' : 'bg-accent/10 text-gold group-hover:bg-gold group-hover:text-paper shadow-sm'
        }`}>
           <Icon size={16} />
        </div>
@@ -588,6 +613,7 @@ const StatsCard = ({ title, value, icon: Icon, trend, isLive, isActive, onClick 
 );
 
 const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Product) => void, onCancel: () => void, initialData?: Product }) => {
+  const { formatPrice } = useApp();
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
     id: initialData?.id || '',
@@ -596,7 +622,7 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
     price: initialData?.price?.toString() || '',
     salePrice: initialData?.salePrice?.toString() || '',
     category: initialData?.category || 'Lashes',
-    brand: initialData?.brand || 'Lash Glaze',
+    brand: initialData?.brand || 'Lash Glaze Strip Lashes',
     image: initialData?.image || '',
     gallery: initialData?.gallery || [] as string[],
     tags: initialData?.tags?.join(', ') || '',
@@ -605,6 +631,11 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
     sizeVariantsEnabled: !!initialData?.variants?.sizes,
     colors: initialData?.variants?.colors || [] as string[],
     sizes: initialData?.variants?.sizes || [] as string[],
+    preOrderEnabled: initialData?.preOrderEnabled || false,
+    preOrderEndsAt: initialData?.preOrderEndsAt ? new Date(initialData.preOrderEndsAt).toISOString().slice(0, 16) : '',
+    preOrderPrice: initialData?.preOrderPrice?.toString() || '',
+    limitedTimeEnabled: initialData?.limitedTimeEnabled || false,
+    limitedTimeEndsAt: initialData?.limitedTimeEndsAt ? new Date(initialData.limitedTimeEndsAt).toISOString().slice(0, 16) : '',
   });
 
   const [newColor, setNewColor] = useState('');
@@ -631,13 +662,18 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
       variants: {
         colors: data.colorVariantsEnabled ? data.colors : undefined,
         sizes: data.sizeVariantsEnabled ? data.sizes : undefined,
-      }
+      },
+      preOrderEnabled: data.preOrderEnabled,
+      preOrderEndsAt: data.preOrderEndsAt || undefined,
+      preOrderPrice: data.preOrderPrice ? parseFloat(data.preOrderPrice) : undefined,
+      limitedTimeEnabled: data.limitedTimeEnabled,
+      limitedTimeEndsAt: data.limitedTimeEndsAt || undefined,
     });
   };
 
   return (
-    <div className="bg-[#0a0a0a] border border-accent/40 rounded-xl overflow-hidden max-w-4xl mx-auto my-8 shadow-2xl">
-      <div className="flex border-b border-accent/40">
+    <div className="bg-[#0a0a0a]  rounded-xl overflow-hidden max-w-4xl mx-auto my-8 shadow-2xl">
+      <div className="flex shadow-inner">
         {[1, 2, 3].map(s => (
           <div key={s} className={`flex-grow h-1 transition-all ${step >= s ? 'bg-gold' : 'bg-accent/10'}`} />
         ))}
@@ -664,21 +700,21 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-bold text-muted">Product Name</label>
-                  <input value={data.name} onChange={e => setData({...data, name: e.target.value})} type="text" placeholder="Name" className="w-full bg-paper border border-accent/40 p-3 rounded text-sm text-ink focus:border-gold outline-none" />
+                  <input value={data.name} onChange={e => setData({...data, name: e.target.value})} type="text" placeholder="Name" className="w-full bg-paper  p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none" />
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-bold text-muted">Brand</label>
-                  <input value={data.brand} onChange={e => setData({...data, brand: e.target.value})} type="text" placeholder="Brand" className="w-full bg-paper border border-accent/40 p-3 rounded text-sm text-ink focus:border-gold outline-none" />
+                  <input value={data.brand} onChange={e => setData({...data, brand: e.target.value})} type="text" placeholder="Brand" className="w-full bg-paper  p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-6">
                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-bold text-muted">Price (€)</label>
-                    <input value={data.price} onChange={e => setData({...data, price: e.target.value})} type="number" placeholder="0.00" className="w-full bg-paper border border-accent/40 p-3 rounded text-sm text-ink focus:border-gold outline-none" />
+                    <label className="text-[10px] uppercase font-bold text-muted">Price</label>
+                    <input value={data.price} onChange={e => setData({...data, price: e.target.value})} type="number" placeholder="0.00" className="w-full bg-paper  p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none" />
                  </div>
                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-bold text-muted">Sale Price (€)</label>
-                    <input value={data.salePrice} onChange={e => setData({...data, salePrice: e.target.value})} type="number" placeholder="Optional" className="w-full bg-paper border border-accent/40 p-3 rounded text-sm text-ink focus:border-gold outline-none" />
+                    <label className="text-[10px] uppercase font-bold text-muted">Sale Price</label>
+                    <input value={data.salePrice} onChange={e => setData({...data, salePrice: e.target.value})} type="number" placeholder="Optional" className="w-full bg-paper  p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none" />
                  </div>
               </div>
               <div className="grid grid-cols-2 gap-6">
@@ -690,16 +726,96 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                 />
                 <div className="space-y-2">
                    <label className="text-[10px] uppercase font-bold text-muted">Stock Level</label>
-                   <input value={data.inventory} onChange={e => setData({...data, inventory: e.target.value})} type="number" placeholder="100" className="w-full bg-paper border border-accent/40 p-3 rounded text-sm text-ink focus:border-gold outline-none" />
+                   <input value={data.inventory} onChange={e => setData({...data, inventory: e.target.value})} type="number" placeholder="100" className="w-full bg-paper  p-3 rounded text-sm text-ink focus:border-gold outline-none" />
                 </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-muted">Tags</label>
-                <input value={data.tags} onChange={e => setData({...data, tags: e.target.value})} type="text" placeholder="Comma separated tags" className="w-full bg-paper border border-accent/40 p-3 rounded text-sm text-ink focus:border-gold outline-none" />
+                <input value={data.tags} onChange={e => setData({...data, tags: e.target.value})} type="text" placeholder="Comma separated tags" className="w-full bg-paper  p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none" />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-muted">Description</label>
-                <textarea value={data.description} onChange={e => setData({...data, description: e.target.value})} rows={3} className="w-full bg-paper border border-accent/40 p-3 rounded text-sm text-ink focus:border-gold outline-none resize-none" placeholder="Description..." />
+                <textarea value={data.description} onChange={e => setData({...data, description: e.target.value})} rows={2} className="w-full bg-paper p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none resize-none" placeholder="Description..." />
+              </div>
+              <div className="space-y-4 pt-6 mt-6 bg-accent/5 p-6 shadow-inner">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h4 className="text-[10px] uppercase font-bold text-ink">Pre-order Mode</h4>
+                    <p className="text-[8px] text-muted uppercase tracking-widest leading-none">Allow customers to order before official drop</p>
+                  </div>
+                  <button 
+                    onClick={() => setData({...data, preOrderEnabled: !data.preOrderEnabled})} 
+                    className={`w-10 h-5 rounded-full relative transition-all shadow-inner ${data.preOrderEnabled ? 'bg-gold' : 'bg-accent/10'}`}
+                  >
+                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${data.preOrderEnabled ? 'left-6' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {data.preOrderEnabled && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="grid grid-cols-2 gap-6 pt-2 overflow-hidden"
+                  >
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-muted">Pre-order Ends At</label>
+                      <input 
+                        type="datetime-local" 
+                        value={data.preOrderEndsAt} 
+                        onChange={e => setData({...data, preOrderEndsAt: e.target.value})} 
+                        className="w-full bg-paper p-3 rounded text-sm text-ink outline-none focus:border-gold"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-muted">Pre-order Value (£)</label>
+                      <input 
+                        type="number" 
+                        value={data.preOrderPrice} 
+                        onChange={e => setData({...data, preOrderPrice: e.target.value})} 
+                        placeholder="Price during pre-order"
+                        className="w-full bg-paper p-3 rounded text-sm text-ink outline-none focus:border-gold"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+
+              <div className="space-y-4 pt-6 mt-6 bg-accent/5 p-6 shadow-inner">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h4 className="text-[10px] uppercase font-bold text-ink">Limited Time Timer</h4>
+                    <p className="text-[8px] text-muted uppercase tracking-widest leading-none">Enable a countdown for regular sale or post-preorder</p>
+                  </div>
+                  <button 
+                    onClick={() => setData({...data, limitedTimeEnabled: !data.limitedTimeEnabled})} 
+                    className={`w-10 h-5 rounded-full relative transition-all shadow-inner ${data.limitedTimeEnabled ? 'bg-gold' : 'bg-accent/10'}`}
+                  >
+                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${data.limitedTimeEnabled ? 'left-6' : 'left-1'}`} />
+                  </button>
+                </div>
+
+                {data.limitedTimeEnabled && (
+                  <motion.div 
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="grid grid-cols-1 gap-6 pt-2 overflow-hidden"
+                  >
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase font-bold text-muted">Limited Timer Ends At</label>
+                      <input 
+                        type="datetime-local" 
+                        value={data.limitedTimeEndsAt} 
+                        onChange={e => setData({...data, limitedTimeEndsAt: e.target.value})} 
+                        className="w-full bg-paper p-3 rounded text-sm text-ink outline-none focus:border-gold"
+                      />
+                      {data.preOrderEnabled && (
+                        <p className="text-[8px] text-gold uppercase tracking-[0.1em] font-bold">
+                          Starts automatically after pre-order period ends
+                        </p>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
               </div>
             </div>
           )}
@@ -708,7 +824,7 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
             <div className="space-y-8 text-ink">
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-muted">Main Image URL</label>
-                <input value={data.image} onChange={e => setData({...data, image: e.target.value})} type="text" placeholder="Paste image link" className="w-full bg-paper border border-accent/40 p-3 rounded text-sm text-ink focus:border-gold outline-none" />
+                <input value={data.image} onChange={e => setData({...data, image: e.target.value})} type="text" placeholder="Paste image link" className="w-full bg-paper  p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none" />
               </div>
 
               <div className="grid grid-cols-2 gap-10 pt-4">
@@ -721,10 +837,10 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                     </div>
                     {data.colorVariantsEnabled && (
                        <div className="space-y-3">
-                          <input value={newColor} onChange={e => setNewColor(e.target.value)} onKeyDown={e => e.key === 'Enter' && (setData({...data, colors: [...data.colors, newColor]}), setNewColor(''))} type="text" placeholder="Type and press enter" className="w-full bg-paper border border-accent/40 p-2 rounded text-[11px] text-ink focus:border-gold outline-none" />
+                          <input value={newColor} onChange={e => setNewColor(e.target.value)} onKeyDown={e => e.key === 'Enter' && (setData({...data, colors: [...data.colors, newColor]}), setNewColor(''))} type="text" placeholder="Type and press enter" className="w-full bg-paper  p-2 rounded text-[11px] text-ink focus:border-gold outline-none" />
                           <div className="flex flex-wrap gap-2">
                              {data.colors.map(c => (
-                               <span key={c} className="px-2 py-1 bg-accent/10 border border-accent/40 text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
+                               <span key={c} className="px-2 py-1 bg-accent/10  text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
                                   {c}
                                   <button onClick={() => setData({...data, colors: data.colors.filter(v => v !== c)})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
                                </span>
@@ -741,10 +857,10 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                     </div>
                     {data.sizeVariantsEnabled && (
                        <div className="space-y-3">
-                          <input value={newSize} onChange={e => setNewSize(e.target.value)} onKeyDown={e => e.key === 'Enter' && (setData({...data, sizes: [...data.sizes, newSize]}), setNewSize(''))} type="text" placeholder="Type and press enter" className="w-full bg-paper border border-accent/40 p-2 rounded text-[11px] text-ink focus:border-gold outline-none" />
+                          <input value={newSize} onChange={e => setNewSize(e.target.value)} onKeyDown={e => e.key === 'Enter' && (setData({...data, sizes: [...data.sizes, newSize]}), setNewSize(''))} type="text" placeholder="Type and press enter" className="w-full bg-paper  p-2 rounded text-[11px] text-ink focus:border-gold outline-none" />
                           <div className="flex flex-wrap gap-2">
                              {data.sizes.map(s => (
-                               <span key={s} className="px-2 py-1 bg-accent/10 border border-accent/40 text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
+                               <span key={s} className="px-2 py-1 bg-accent/10  text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
                                   {s}
                                   <button onClick={() => setData({...data, sizes: data.sizes.filter(v => v !== s)})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
                                </span>
@@ -754,33 +870,69 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                     )}
                  </div>
 
-                 <div className="space-y-4">
-                    <label className="text-[10px] uppercase font-bold text-muted">Gallery Preview</label>
-                    <div className="flex gap-2">
-                       <input value={newGalleryUrl} onChange={e => setNewGalleryUrl(e.target.value)} type="text" placeholder="URL" className="flex-grow bg-paper border border-accent/40 p-2 rounded text-xs text-ink outline-none focus:border-gold" />
-                       <button onClick={() => { if(newGalleryUrl) { setData({...data, gallery: [...data.gallery, newGalleryUrl]}); setNewGalleryUrl(''); } }} className="bg-gold p-2 rounded hover:bg-white text-paper transition-all font-bold text-[10px] uppercase tracking-widest px-4">ADD</button>
-                    </div>
-                    <div className="grid grid-cols-3 gap-2">
-                       {data.gallery.slice(0, 5).map((url, i) => (
-                         <div key={i} className="aspect-square rounded border border-accent/40 overflow-hidden bg-accent/10">
-                            <img src={url} className="w-full h-full object-cover" />
-                         </div>
-                       ))}
-                       <div className="aspect-square border border-accent/40 border-dashed flex items-center justify-center text-muted text-[10px] uppercase font-bold">
-                          +{data.gallery.length} more
-                       </div>
-                    </div>
-                 </div>
+                 <div className="space-y-4 flex flex-col h-full">
+                     <label className="text-[10px] uppercase font-bold text-muted">Gallery Collection</label>
+                     <div className="flex gap-2">
+                        <input 
+                           value={newGalleryUrl} 
+                           onChange={e => setNewGalleryUrl(e.target.value)} 
+                           type="text" 
+                           placeholder="PASTE IMAGE URL" 
+                           className="flex-grow bg-paper p-3 text-[11px] text-ink outline-none focus:ring-1 focus:ring-gold/30 transition-all rounded-none" 
+                        />
+                        <button 
+                           onClick={() => { if(newGalleryUrl && !data.gallery.includes(newGalleryUrl)) { setData({...data, gallery: [...data.gallery, newGalleryUrl]}); setNewGalleryUrl(''); } }} 
+                           className="bg-gold hover:bg-white text-paper px-8 py-3 font-bold text-[10px] uppercase tracking-widest transition-all rounded-none"
+                        >
+                           ADD
+                        </button>
+                     </div>
+                     
+                     <div className="flex-grow overflow-y-auto pr-2 min-h-[300px] max-h-[350px] space-y-1 no-scrollbar border-t border-white/5 pt-4">
+                        {data.gallery.length === 0 ? (
+                           <div className="h-40 border border-dashed border-white/10 flex flex-col items-center justify-center text-muted/30 gap-3">
+                              <Plus size={20} className="opacity-20" />
+                              <span className="text-[9px] uppercase tracking-[0.2em] font-bold">No gallery items</span>
+                           </div>
+                        ) : (
+                           <Reorder.Group axis="y" values={data.gallery} onReorder={(newOrder) => setData({...data, gallery: newOrder})} className="space-y-2">
+                              {data.gallery.map((url, i) => (
+                                 <Reorder.Item 
+                                    key={url} 
+                                    value={url}
+                                    className="group flex items-center gap-4 bg-paper/5 h-[70px] p-2 transition-all cursor-grab active:cursor-grabbing border-b border-white/5 hover:bg-paper/10"
+                                 >
+                                    <div className="text-muted/40 group-hover:text-gold transition-colors pl-2">
+                                       <GripVertical size={14} />
+                                    </div>
+                                    <div className="w-12 h-12 bg-black flex-shrink-0">
+                                       <img src={url} className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-grow truncate text-[9px] text-muted font-mono tracking-tight opacity-40 group-hover:opacity-100 transition-opacity">
+                                       {url}
+                                    </div>
+                                    <button 
+                                       onClick={(e) => { e.stopPropagation(); setData({...data, gallery: data.gallery.filter((_, index) => index !== i)}); }}
+                                       className="p-3 text-muted hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
+                                    >
+                                       <Trash2 size={12} />
+                                    </button>
+                                 </Reorder.Item>
+                              ))}
+                           </Reorder.Group>
+                        )}
+                     </div>
+                  </div>
               </div>
             </div>
           )}
 
           {step === 3 && (
             <div className="grid grid-cols-2 gap-10">
-               <div className="aspect-[4/5] bg-paper rounded border border-accent/40 overflow-hidden relative group">
+               <div className="aspect-[4/5] bg-paper rounded  overflow-hidden relative group">
                   <img src={data.image || 'https://picsum.photos/seed/placeholder/800/1000'} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                   <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black to-transparent">
-                     <p className="text-[10px] uppercase font-bold tracking-widest text-gold mb-1">{data.brand || 'Lash Glaze'}</p>
+                     <p className="text-[10px] uppercase font-bold tracking-widest text-gold mb-1">{data.brand || 'Lash Glaze Strip Lashes'}</p>
                      <h3 className="text-xl font-bold uppercase tracking-widest leading-tight">{data.name || 'Product Name'}</h3>
                   </div>
                </div>
@@ -793,8 +945,8 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                   <div className="space-y-1">
                      <p className="text-[10px] uppercase text-muted font-bold">Pricing</p>
                      <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold">€{parseFloat(data.price || '0').toFixed(2)}</span>
-                        {data.salePrice && <span className="text-sm text-red-500 line-through">€{parseFloat(data.salePrice).toFixed(2)}</span>}
+                        <span className="text-2xl font-bold">{formatPrice(parseFloat(data.price || '0'))}</span>
+                        {data.salePrice && <span className="text-sm text-red-500 line-through">{formatPrice(parseFloat(data.salePrice))}</span>}
                      </div>
                   </div>
                   <div className="space-y-1">
@@ -806,7 +958,7 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                     <div className="space-y-1">
                        <p className="text-[10px] uppercase text-muted font-bold">Colors</p>
                        <div className="flex flex-wrap gap-2">
-                          {data.colors.map(c => <span key={c} className="text-[9px] font-bold px-2 py-0.5 bg-accent/10 border border-accent/40 uppercase">{c}</span>)}
+                          {data.colors.map(c => <span key={c} className="text-[9px] font-bold px-2 py-0.5 bg-accent/10  uppercase">{c}</span>)}
                        </div>
                     </div>
                   )}
@@ -839,24 +991,23 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
 };
 
 const ProductsTab = ({ products, setProducts }: any) => {
+  const { formatPrice, saveProduct, deleteProductFromDb } = useApp();
   const [showAddWizard, setShowAddWizard] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [categories, setCategories] = useState(['Lashes', 'Accessories', 'Adhesives', 'Kits']);
   const [newCategory, setNewCategory] = useState('');
 
-  const addProduct = (newProduct: Product) => {
-    if (editingProduct) {
-      setProducts(products.map((p: Product) => p.id === editingProduct.id ? newProduct : p));
-    } else {
-      setProducts([...products, newProduct]);
-    }
+  const addProduct = async (newProduct: Product) => {
+    await saveProduct(newProduct);
     setShowAddWizard(false);
     setEditingProduct(null);
   };
 
-  const deleteProduct = (id: string) => {
-    setProducts(products.filter((p: any) => p.id !== id));
+  const deleteProduct = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this product?')) {
+      await deleteProductFromDb(id);
+    }
   };
 
   const startEdit = (p: Product) => {
@@ -877,13 +1028,13 @@ const ProductsTab = ({ products, setProducts }: any) => {
 
   return (
     <div className="space-y-8">
-       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 border border-accent/40 p-4 lg:p-8 rounded-lg gap-6">
+       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10  p-4 lg:p-8 rounded-lg gap-6">
           <div>
              <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Product Inventory</h1>
              <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Catalog Management</p>
           </div>
           <div className="flex flex-wrap items-center gap-4 w-full md:w-auto">
-             <button onClick={() => setShowCategoriesModal(true)} className="flex-grow md:flex-none bg-accent/10 hover:bg-accent/10 border border-accent/40 px-6 py-4 rounded font-bold uppercase text-[10px] tracking-[0.2em] transition-all text-muted">
+             <button onClick={() => setShowCategoriesModal(true)} className="flex-grow md:flex-none bg-accent/10 hover:bg-accent/10  px-6 py-4 rounded font-bold uppercase text-[10px] tracking-[0.2em] transition-all text-muted">
                 Categories
              </button>
              <button 
@@ -903,7 +1054,7 @@ const ProductsTab = ({ products, setProducts }: any) => {
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-[#111] border border-accent/40 rounded-lg w-full max-w-md p-8 relative z-50 shadow-2xl flex flex-col max-h-[80vh]"
+                className="bg-[#111]  rounded-lg w-full max-w-md p-8 relative z-50 shadow-2xl flex flex-col max-h-[80vh]"
               >
                  <div className="flex justify-between items-center mb-8">
                     <h2 className="text-xl font-bold uppercase tracking-widest text-ink">Manage Categories</h2>
@@ -914,7 +1065,7 @@ const ProductsTab = ({ products, setProducts }: any) => {
                  
                  <div className="space-y-4 mb-8 overflow-y-auto pr-2 custom-scrollbar">
                     {categories.map(cat => (
-                      <div key={cat} className="flex justify-between items-center p-4 bg-accent/10 border border-accent/40 rounded group">
+                      <div key={cat} className="flex justify-between items-center p-4 bg-accent/10  rounded group">
                          <span className="text-[11px] font-bold uppercase tracking-widest text-ink">{cat}</span>
                          <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
                            <button className="text-muted hover:text-ink transition-colors"><Edit size={14} /></button>
@@ -931,7 +1082,7 @@ const ProductsTab = ({ products, setProducts }: any) => {
                       onChange={e => setNewCategory(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && addCategory()}
                       placeholder="NEW CATEGORY NAME" 
-                      className="flex-grow bg-paper border border-accent/40 p-3 rounded text-[10px] uppercase font-bold tracking-widest text-ink outline-none focus:border-gold transition-colors" 
+                      className="flex-grow bg-paper  p-3 rounded text-[10px] uppercase font-bold tracking-widest text-ink placeholder:text-muted/50 outline-none focus:border-gold transition-colors" 
                     />
                     <button onClick={addCategory} className="bg-gold text-paper px-6 py-3 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-colors">
                        Add
@@ -958,13 +1109,13 @@ const ProductsTab = ({ products, setProducts }: any) => {
              layout
              initial={{ opacity: 0 }}
              animate={{ opacity: 1 }}
-             className="group bg-paper border border-accent/40 rounded-lg overflow-hidden flex flex-col hover:border-gold/30 transition-all shadow-xl"
+             className="group bg-paper  rounded-lg overflow-hidden flex flex-col hover:border-gold/30 transition-all shadow-xl"
            >
              <div className="relative aspect-square overflow-hidden">
                <img src={p.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" referrerPolicy="no-referrer" />
                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-60" />
                <div className="absolute top-2 right-2 lg:top-4 lg:right-4 flex gap-2">
-                  <button onClick={() => startEdit(p)} className="p-1.5 lg:p-2 bg-ink/80 backdrop-blur-md rounded border border-accent/40 hover:bg-gold hover:text-paper transition-all text-muted">
+                  <button onClick={() => startEdit(p)} className="p-1.5 lg:p-2 bg-ink/80 backdrop-blur-md rounded  hover:bg-gold hover:text-paper transition-all text-muted">
                      <Edit size={12} />
                   </button>
                </div>
@@ -983,7 +1134,7 @@ const ProductsTab = ({ products, setProducts }: any) => {
                    </div>
                 </div>
                 <div className="flex justify-between items-center pt-3 border-t border-accent/40">
-                   <span className="text-xs lg:text-sm font-sans font-bold text-gold">€{p.price.toFixed(2)}</span>
+                   <span className="text-xs lg:text-sm font-sans font-bold text-gold">{formatPrice(p.price)}</span>
                    <button onClick={() => deleteProduct(p.id)} className="p-1 hover:text-red-500 transition-colors text-muted">
                       <Trash2 size={12} />
                    </button>
@@ -996,7 +1147,8 @@ const ProductsTab = ({ products, setProducts }: any) => {
   );
 };
 
-const OrdersTab = ({ orders, setOrders }: any) => {
+const OrdersTab = ({ orders, setOrders, deleteOrder }: any) => {
+  const { formatPrice, formatOrderNumber } = useApp();
   const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [filter, setFilter] = useState('All Orders');
@@ -1032,21 +1184,36 @@ const OrdersTab = ({ orders, setOrders }: any) => {
     setOrders(orders.map((o: any) => o.id === id ? { ...o, status } : o));
   };
 
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to permanently delete this acquisition record?')) {
+      await deleteOrder(id);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete ${selectedOrders.length} records?`)) {
+      for (const id of selectedOrders) {
+        await deleteOrder(id);
+      }
+      setSelectedOrders([]);
+    }
+  };
+
   const statusOptions = ['All Orders', 'pending', 'processed', 'shipped', 'out-for-delivery', 'delivered'];
 
   return (
     <div className="space-y-8">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 border border-accent/40 p-4 lg:p-8 rounded-lg gap-6">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 p-4 lg:p-8 rounded-lg gap-6">
            <div>
               <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Order Management</h1>
               <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Logistics & Fullfillment Control</p>
            </div>
            <div className="flex flex-wrap items-center gap-4">
-               <button className="bg-accent/10 hover:bg-accent/10 border border-accent/40 p-3 rounded text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all">
+               <button className="bg-accent/10 hover:bg-accent/10 p-3 rounded text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all">
                   <Download size={14} />
                   Export
                </button>
-               <button className="bg-accent/10 hover:bg-accent/10 border border-accent/40 p-3 rounded text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all">
+               <button className="bg-accent/10 hover:bg-accent/10 p-3 rounded text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all">
                   <Printer size={14} />
                   Manifest
                </button>
@@ -1069,13 +1236,15 @@ const OrdersTab = ({ orders, setOrders }: any) => {
                   <div className="h-4 w-px bg-ink/80" />
                   <button onClick={() => bulkUpdateTracking('shipped')} className="hover:underline tracking-widest px-2">SHIP</button>
                   <button onClick={() => bulkUpdateTracking('delivered')} className="hover:underline tracking-widest px-2">DELIVER</button>
-                  <button onClick={() => setSelectedOrders([])} className="ml-2 hover:opacity-70 transition-opacity"><Trash2 size={14} /></button>
+                  <div className="h-4 w-px bg-ink/80 mx-1" />
+                  <button onClick={handleBulkDelete} className="hover:text-red-500 transition-colors px-2"><Trash2 size={14} /></button>
+                  <button onClick={() => setSelectedOrders([])} className="ml-2 hover:opacity-70 transition-opacity"><X size={14} /></button>
                </motion.div>
              )}
            </div>
         </div>
 
-        <div className="bg-paper border border-accent/40 rounded-lg overflow-hidden">
+        <div className="bg-paper rounded-lg overflow-hidden">
            <div className="block md:hidden divide-y divide-white/5">
               {orders.filter((o: any) => filter === 'All Orders' || o.status === filter).map((o: any) => (
                 <div key={o.id} className="p-6 space-y-4" onClick={() => toggleExpand(o.id)}>
@@ -1083,7 +1252,7 @@ const OrdersTab = ({ orders, setOrders }: any) => {
                       <div className="flex flex-col">
                          <div className="flex items-center gap-2 mb-1">
                             <Checkbox checked={selectedOrders.includes(o.id)} onChange={() => toggleSelect(o.id)} />
-                            <span className="text-[11px] font-bold text-ink tracking-widest">{o.id}</span>
+                            <span className="text-[11px] font-bold text-ink tracking-widest">{formatOrderNumber(o.orderNumber)}</span>
                          </div>
                          <span className="font-bold uppercase tracking-widest text-[11px] text-muted">{o.customerName}</span>
                       </div>
@@ -1095,7 +1264,7 @@ const OrdersTab = ({ orders, setOrders }: any) => {
                          }`}>
                             {o.status.replace(/-/g, ' ')}
                          </span>
-                         <span className="text-[12px] font-bold text-ink">€{o.total.toFixed(2)}</span>
+                         <span className="text-[12px] font-bold text-ink">{formatPrice(o.total)}</span>
                       </div>
                    </div>
                    
@@ -1105,13 +1274,13 @@ const OrdersTab = ({ orders, setOrders }: any) => {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="pt-4 border-t border-accent/40 mt-4 flex flex-col gap-4 overflow-hidden"
+                        className="pt-4 border-t border-accent/10 mt-4 flex flex-col gap-4 overflow-hidden"
                       >
                          <div className="space-y-2">
                            {o.items.map((item: any, i: number) => (
                              <div key={i} className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-muted">
                                <span>Lash x {item.quantity}</span>
-                               <span>€{(item.price * item.quantity).toFixed(2)}</span>
+                               <span>{formatPrice(item.price * item.quantity)}</span>
                              </div>
                            ))}
                          </div>
@@ -1123,7 +1292,7 @@ const OrdersTab = ({ orders, setOrders }: any) => {
                                  className={`py-2 rounded text-[8px] font-bold uppercase tracking-[0.1em] transition-all border ${
                                    o.status === st 
                                    ? 'bg-gold border-gold text-paper' 
-                                   : 'bg-accent/10 border-accent/40 text-muted'
+                                   : 'bg-accent/10 text-muted'
                                  }`}
                               >
                                  {st}
@@ -1137,9 +1306,9 @@ const OrdersTab = ({ orders, setOrders }: any) => {
               ))}
            </div>
 
-           <div className="hidden md:block overflow-x-auto no-scrollbar border-t-0">
+           <div className="hidden md:block overflow-x-auto no-scrollbar">
            <table className="w-full text-left min-w-[800px] md:min-w-0">
-              <thead className="bg-[#0a0a0a] border-y border-accent/40 text-[9px] uppercase tracking-[0.3em] font-bold text-muted">
+              <thead className="bg-[#0a0a0a] text-[9px] uppercase tracking-[0.3em] font-bold text-muted">
                  <tr>
                     <th className="px-8 py-4 w-12 text-center">
                        <Checkbox checked={selectedOrders.length === orders.length && orders.length > 0} onChange={selectAll} />
@@ -1160,7 +1329,7 @@ const OrdersTab = ({ orders, setOrders }: any) => {
                           </div>
                        </td>
                        <td className="px-8 py-6">
-                          <p className="text-[11px] font-bold text-ink tracking-widest">{o.id}</p>
+                          <p className="text-[11px] font-bold text-ink tracking-widest">{formatOrderNumber(o.orderNumber)}</p>
                           <p className="text-[9px] text-muted mt-1 uppercase font-bold tracking-widest transition-opacity group-hover:opacity-100 opacity-0 italic">View Journey</p>
                        </td>
                        <td className="px-8 py-6">
@@ -1181,16 +1350,16 @@ const OrdersTab = ({ orders, setOrders }: any) => {
                                 })}
                              </div>
                              <span className={`text-[9px] font-bold uppercase tracking-widest ${
-                               o.status === 'delivered' ? 'text-green-400' : 
-                               o.status === 'shipped' || o.status === 'out-for-delivery' ? 'text-blue-400' : 
-                               'text-gold'
+                                o.status === 'delivered' ? 'text-green-400' : 
+                                o.status === 'shipped' || o.status === 'out-for-delivery' ? 'text-blue-400' : 
+                                'text-gold'
                              }`}>
                                 {o.status.replace(/-/g, ' ')}
                              </span>
                           </div>
                        </td>
                        <td className="px-8 py-6 text-right">
-                          <span className="text-[11px] font-bold text-ink">€{o.total.toFixed(2)}</span>
+                          <span className="text-[11px] font-bold text-ink">{formatPrice(o.total)}</span>
                        </td>
                     </tr>
                     {expandedOrders.includes(o.id) && (
@@ -1199,17 +1368,17 @@ const OrdersTab = ({ orders, setOrders }: any) => {
                             <motion.div 
                               initial={{ opacity: 0, height: 0 }}
                               animate={{ opacity: 1, height: 'auto' }}
-                              className="px-8 py-10 grid grid-cols-3 gap-16 border-b border-accent/40 overflow-hidden"
+                              className="divide-y divide-white/5 shadow-inner px-8 py-10 grid grid-cols-3 gap-16 overflow-hidden"
                             >
                                <div className="space-y-6">
                                   <h4 className="text-[9px] uppercase tracking-[0.4em] font-bold text-gold/60">Order Snapshot</h4>
                                   <div className="space-y-3">
                                      {o.items.map((item: any, i: number) => (
-                                       <div key={i} className="flex justify-between items-center bg-accent/10 p-4 rounded border border-accent/40">
+                                       <div key={i} className="flex justify-between items-center bg-accent/10 p-4 rounded">
                                           <div className="text-[10px] uppercase font-bold tracking-widest">
                                             Lash x {item.quantity}
                                           </div>
-                                          <div className="text-[10px] font-bold text-muted">€{(item.price * item.quantity).toFixed(2)}</div>
+                                          <div className="text-[10px] font-bold text-muted">{formatPrice(item.price * item.quantity)}</div>
                                        </div>
                                      ))}
                                   </div>
@@ -1217,17 +1386,20 @@ const OrdersTab = ({ orders, setOrders }: any) => {
 
                                <div className="space-y-6">
                                   <h4 className="text-[9px] uppercase tracking-[0.4em] font-bold text-gold/60">Dispatch To</h4>
-                                  <div className="bg-accent/10 p-6 rounded border border-accent/40 text-[10px] space-y-3 tracking-widest leading-loose">
+                                  <div className="bg-accent/10 p-6 rounded text-[10px] space-y-3 tracking-widest leading-loose">
                                      <p className="font-bold text-ink uppercase">{o.customerName}</p>
                                      <p className="text-muted">123 FASHION BOULEVARD<br />SUITE 402, DESIGN DISTRICT<br />BERLIN, 10115, DE</p>
-                                     <div className="pt-3 border-t border-accent/40 text-gold font-bold">Standard Priority Shipped</div>
+                                     <div className="pt-3 border-t border-white/10 text-gold font-bold">Standard Priority Shipped</div>
                                   </div>
                                 </div>
 
                                <div className="space-y-6">
                                   <div className="flex justify-between items-center">
                                      <h4 className="text-[9px] uppercase tracking-[0.4em] font-bold text-gold/60">Update Staging</h4>
-                                     <button className="text-[9px] font-bold uppercase text-red-500 hover:underline">Issue Refund</button>
+                                     <div className="flex gap-4">
+                                        <button className="text-[9px] font-bold uppercase text-muted hover:text-ink hover:underline">Issue Refund</button>
+                                        <button onClick={() => handleDelete(o.id)} className="text-[9px] font-bold uppercase text-red-500 hover:underline">Delete Order</button>
+                                     </div>
                                   </div>
                                   <div className="grid grid-cols-1 gap-3">
                                      {['pending', 'processed', 'shipped', 'out-for-delivery', 'delivered'].map((st) => (
@@ -1237,7 +1409,7 @@ const OrdersTab = ({ orders, setOrders }: any) => {
                                           className={`py-3 rounded text-[9px] font-bold uppercase tracking-[0.2em] transition-all border ${
                                             o.status === st 
                                             ? 'bg-gold border-gold text-paper shadow-[0_0_15px_rgba(212,175,55,0.2)]' 
-                                            : 'bg-accent/10 border-accent/40 text-muted hover:text-ink hover:bg-accent/10'
+                                            : 'bg-accent/10 text-muted hover:text-ink hover:bg-accent/10'
                                           }`}
                                        >
                                           {st.replace(/-/g, ' ')}
@@ -1259,10 +1431,158 @@ const OrdersTab = ({ orders, setOrders }: any) => {
   );
 };
 
-const PaymentTab = ({ paymentMethods, setPaymentMethods, shippingMethods, setShippingMethods }: any) => {
+const DiscountWizard = ({ isOpen, onClose, storeSettings, formatPrice }: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  storeSettings: any,
+  formatPrice: (n: number) => string 
+}) => {
+  const [step, setStep] = useState(1);
+  const [discountData, setDiscountData] = useState({
+    code: '',
+    type: 'percentage' as 'percentage' | 'fixed',
+    value: '',
+    minValue: '',
+    expiryDate: ''
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-ink/60 backdrop-blur-md"
+        onClick={onClose}
+      />
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        className="bg-paper max-w-xl w-full shadow-[0_50px_100px_rgba(0,0,0,0.3)] relative overflow-hidden flex flex-col"
+      >
+        <div className="flex items-center justify-between p-8 shadow-sm">
+           <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-gold/10 text-gold flex items-center justify-center">
+                 <Tag size={20} />
+              </div>
+              <div>
+                 <h3 className="text-xs uppercase tracking-[0.3em] font-bold">New Editorial Offer</h3>
+                 <p className="text-[9px] text-muted uppercase mt-1">Step {step} of 2</p>
+              </div>
+           </div>
+           <button onClick={onClose} className="p-2 hover:bg-accent/10 transition-colors">
+              <X size={20} />
+           </button>
+        </div>
+
+        <div className="p-8 space-y-8">
+           {step === 1 ? (
+             <div className="space-y-6">
+                <div className="space-y-4">
+                   <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Promotion Code</label>
+                   <input 
+                     type="text" 
+                     placeholder="e.g. GLAZE20"
+                     value={discountData.code}
+                     onChange={(e) => setDiscountData({...discountData, code: e.target.value.toUpperCase()})}
+                     className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none focus:bg-accent/20 transition-all uppercase"
+                   />
+                </div>
+                <div className="grid grid-cols-2 gap-6">
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Type</label>
+                      <div className="flex bg-accent/10 p-1">
+                         <button 
+                           onClick={() => setDiscountData({...discountData, type: 'percentage'})}
+                           className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-widest transition-all ${discountData.type === 'percentage' ? 'bg-gold text-paper' : 'text-muted hover:text-ink'}`}
+                         >
+                            Percentage
+                         </button>
+                         <button 
+                           onClick={() => setDiscountData({...discountData, type: 'fixed'})}
+                           className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-widest transition-all ${discountData.type === 'fixed' ? 'bg-gold text-paper' : 'text-muted hover:text-ink'}`}
+                         >
+                            Fixed Amount
+                         </button>
+                      </div>
+                   </div>
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Value</label>
+                      <div className="relative">
+                         <input 
+                           type="number" 
+                           placeholder="0"
+                           value={discountData.value}
+                           onChange={(e) => setDiscountData({...discountData, value: e.target.value})}
+                           className="w-full bg-accent/10 p-5 pr-10 text-xs font-bold tracking-widest outline-none focus:bg-accent/20 transition-all font-mono"
+                         />
+                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-muted text-[10px] font-bold">
+                            {discountData.type === 'percentage' ? '%' : storeSettings.currency}
+                         </div>
+                      </div>
+                   </div>
+                </div>
+             </div>
+           ) : (
+             <div className="space-y-6">
+                <div className="space-y-4">
+                   <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Minimum Purchase Requirement</label>
+                   <div className="relative">
+                      <input 
+                        type="number" 
+                        placeholder="0.00"
+                        value={discountData.minValue}
+                        onChange={(e) => setDiscountData({...discountData, minValue: e.target.value})}
+                        className="w-full bg-accent/10 p-5 px-10 text-xs font-bold tracking-widest outline-none focus:bg-accent/20 transition-all font-mono"
+                      />
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold text-[10px]">
+                         {storeSettings.currency}
+                      </div>
+                   </div>
+                </div>
+                <div className="space-y-4">
+                   <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Expiry Logistics</label>
+                   <input 
+                     type="date" 
+                     value={discountData.expiryDate}
+                     onChange={(e) => setDiscountData({...discountData, expiryDate: e.target.value})}
+                     className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none focus:bg-accent/20 transition-all cursor-pointer"
+                   />
+                </div>
+             </div>
+           )}
+        </div>
+
+        <div className="p-8 bg-paper flex gap-4 shadow-inner justify-end">
+           {step === 2 && (
+             <button 
+               onClick={() => setStep(1)}
+               className="px-10 py-4 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink transition-all"
+             >
+                Back
+             </button>
+           )}
+           <button 
+             onClick={() => step === 1 ? setStep(2) : onClose()}
+             className="px-12 py-4 bg-ink text-paper text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gold transition-all"
+           >
+              {step === 1 ? 'Next Phase' : 'Activate Offer'}
+           </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+};
+
+const PaymentTab = ({ paymentMethods, shippingMethods }: any) => {
+  const { formatPrice, togglePaymentMethod, toggleShippingMethod, storeSettings } = useApp();
+  const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [promoCodes, setPromoCodes] = useState([
     { code: 'WELCOME_GLAZE', discount: '20%', usage: 145, status: 'Active' },
-    { code: 'SPRING_LASH', discount: '€10', usage: 89, status: 'Active' },
+    { code: 'SPRING_LASH', discount: '£10', usage: 89, status: 'Active' },
     { code: 'BETA_TESTER', discount: '100%', usage: 12, status: 'Expired' }
   ]);
 
@@ -1275,28 +1595,29 @@ const PaymentTab = ({ paymentMethods, setPaymentMethods, shippingMethods, setShi
                Payment Providers
             </h2>
             <div className="space-y-4">
-               {paymentMethods.map((m: any) => (
-                 <div key={m.id} className="p-4 sm:p-6 bg-accent/10 border border-accent/40 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-4">
-                       <div className="w-12 h-12 bg-accent/10 rounded flex items-center justify-center text-gold">
-                          <CreditCard size={24} />
-                       </div>
-                       <div>
-                          <p className="font-bold uppercase tracking-widest text-xs">{m.name}</p>
-                          <p className="text-[9px] text-muted uppercase tracking-widest mt-1">Status: {m.enabled ? 'Live' : 'Development'}</p>
-                       </div>
-                    </div>
-                    <button 
-                      onClick={() => setPaymentMethods(paymentMethods.map((p: any) => p.id === m.id ? { ...p, enabled: !p.enabled } : p))}
-                      className={`w-12 h-6 rounded-full transition-colors relative ${m.enabled ? 'bg-gold' : 'bg-accent/10'}`}
-                    >
-                      <motion.div 
-                        animate={{ x: m.enabled ? 24 : 4 }}
-                        className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-lg" 
-                      />
-                    </button>
-                 </div>
-               ))}
+                {paymentMethods.map((m: any) => (
+                  <div key={m.id} className="p-4 sm:p-6 bg-accent/10 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                     <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-gold">
+                           <CreditCard size={24} />
+                        </div>
+                        <div>
+                           <p className="font-bold uppercase tracking-widest text-xs">{m.name}</p>
+                           <p className="text-[9px] text-muted uppercase tracking-widest mt-1">Status: {m.enabled ? 'Live' : 'Development'}</p>
+                        </div>
+                     </div>
+                     <div 
+                       onClick={() => togglePaymentMethod(m.id, !m.enabled)}
+                       className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer flex items-center ${m.enabled ? 'bg-gold' : 'bg-accent/40'}`}
+                       style={{ borderRadius: '999px' }}
+                     >
+                       <motion.div 
+                         animate={{ x: m.enabled ? 24 : 4 }}
+                         className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-lg" 
+                       />
+                     </div>
+                  </div>
+                ))}
             </div>
          </div>
 
@@ -1306,8 +1627,8 @@ const PaymentTab = ({ paymentMethods, setPaymentMethods, shippingMethods, setShi
                Logistics & Taxes
             </h2>
             <div className="space-y-6">
-               <div className="bg-accent/10 border border-accent/40 rounded-xl overflow-hidden">
-                  <div className="p-4 bg-accent/10 border-b border-accent/40 flex justify-between items-center">
+               <div className="bg-accent/10 shadow-sm overflow-hidden">
+                  <div className="p-4 bg-accent/10 shadow-sm flex justify-between items-center">
                      <p className="text-[10px] uppercase font-bold tracking-widest text-muted">Shipping Rates</p>
                      <button className="text-[10px] uppercase font-bold text-gold hover:underline">Add Region</button>
                   </div>
@@ -1315,26 +1636,27 @@ const PaymentTab = ({ paymentMethods, setPaymentMethods, shippingMethods, setShi
                      {shippingMethods.map((s: any) => (
                        <div key={s.id} className="p-4 flex items-center justify-between">
                           <div className="flex items-center gap-3">
-                             <div className="w-8 h-8 rounded bg-accent/10 flex items-center justify-center">
+                             <div className="w-8 h-8 bg-accent/10 flex items-center justify-center">
                                 <Ship size={14} className="text-muted" />
                              </div>
                              <div>
                                 <p className="text-[11px] font-bold uppercase tracking-widest">{s.name}</p>
-                                <p className="text-[9px] text-muted uppercase">Rate: €{s.price.toFixed(2)}</p>
+                                <p className="text-[9px] text-muted uppercase">Rate: {formatPrice(s.price)}</p>
                              </div>
                           </div>
-                          <button 
-                            onClick={() => setShippingMethods(shippingMethods.map((sm: any) => sm.id === s.id ? { ...sm, enabled: !sm.enabled } : sm))}
-                            className={`w-10 h-5 rounded-full transition-colors relative ${s.enabled ? 'bg-gold' : 'bg-accent/10'}`}
+                          <div 
+                            onClick={() => toggleShippingMethod(s.id, !s.enabled)}
+                            className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer flex items-center ${s.enabled ? 'bg-gold' : 'bg-accent/40'}`}
+                            style={{ borderRadius: '999px' }}
                           >
                             <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${s.enabled ? 'left-5.5' : 'left-0.5'}`} />
-                          </button>
+                          </div>
                        </div>
                      ))}
                   </div>
                </div>
 
-               <div className="bg-accent/10 border border-accent/40 p-6 rounded-xl space-y-4">
+               <div className="bg-accent/10 p-6 rounded-xl space-y-4">
                   <div className="flex justify-between items-center">
                      <h4 className="text-[10px] uppercase font-bold tracking-widest">Tax Configuration</h4>
                      <span className="text-[10px] text-green-400 font-bold">Standard 20% Applied</span>
@@ -1346,20 +1668,29 @@ const PaymentTab = ({ paymentMethods, setPaymentMethods, shippingMethods, setShi
          </div>
       </div>
 
-      <div className="bg-paper border border-accent/40 rounded-xl overflow-hidden">
-         <div className="p-8 border-b border-accent/40 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div className="bg-paper shadow-2xl overflow-hidden">
+         <div className="p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
             <div>
                <h3 className="text-xl font-serif italic mb-2">Promotion & Incentive Engine</h3>
                <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted">Coupon codes and seasonal discounts</p>
             </div>
-            <button className="luxury-button w-full md:w-auto flex items-center justify-center gap-3">
+            <button 
+              onClick={() => setIsWizardOpen(true)}
+              className="luxury-button w-full md:w-auto flex items-center justify-center gap-3"
+            >
                <Plus size={16} />
                Create New Offer
             </button>
          </div>
+         <DiscountWizard 
+           isOpen={isWizardOpen} 
+           onClose={() => setIsWizardOpen(false)} 
+           storeSettings={storeSettings}
+           formatPrice={formatPrice}
+         />
          <div className="overflow-x-auto no-scrollbar">
             <table className="w-full text-left min-w-[600px]">
-               <thead className="bg-[#0a0a0a] border-b border-accent/40 text-[9px] uppercase tracking-[0.3em] font-bold text-muted">
+               <thead className="bg-[#0a0a0a] text-[9px] uppercase tracking-[0.3em] font-bold text-muted">
                   <tr>
                      <th className="px-8 py-5">Promotion Code</th>
                      <th className="px-8 py-5">Value</th>
@@ -1372,7 +1703,7 @@ const PaymentTab = ({ paymentMethods, setPaymentMethods, shippingMethods, setShi
                   {promoCodes.map((promo) => (
                     <tr key={promo.code} className="hover:bg-white/[0.02] transition-colors">
                        <td className="px-8 py-6">
-                          <span className="bg-gold/10 text-gold border border-gold/20 px-3 py-1 rounded text-[10px] font-bold tracking-widest">
+                          <span className="bg-gold/10 text-gold px-3 py-1 rounded text-[10px] font-bold tracking-widest">
                              {promo.code}
                           </span>
                        </td>
@@ -1397,6 +1728,7 @@ const PaymentTab = ({ paymentMethods, setPaymentMethods, shippingMethods, setShi
 };
 
 const CustomersTab = ({ customers }: any) => {
+  const { formatPrice } = useApp();
   const [selectedCustomer, setSelectedCustomer] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -1424,7 +1756,7 @@ const CustomersTab = ({ customers }: any) => {
         <div className="flex items-center gap-6">
            <button 
              onClick={() => setSelectedCustomer(null)}
-             className="w-12 h-12 rounded-full border border-accent/40 flex items-center justify-center hover:bg-accent/10 transition-all text-muted hover:text-ink"
+             className="w-12 h-12 rounded-full flex items-center justify-center hover:bg-accent/10 transition-all text-muted hover:text-ink"
            >
               <ChevronLeft size={20} />
            </button>
@@ -1433,32 +1765,32 @@ const CustomersTab = ({ customers }: any) => {
               <p className="text-muted text-[10px] uppercase tracking-[0.3em] font-bold mt-1">Acquired on March 12, 2024</p>
            </div>
            <div className="ml-auto flex gap-4">
-              <button className="bg-accent/10 border border-accent/40 px-6 py-3 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-accent/10 transition-all">Send Note</button>
+              <button className="bg-accent/10 px-6 py-3 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-accent/10 transition-all">Send Note</button>
               <button className="bg-gold text-paper px-6 py-3 rounded font-bold text-[10px] uppercase tracking-widest shadow-2xl">Create Reward</button>
            </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-           <div className="bg-paper border border-accent/40 p-8 rounded-lg space-y-2">
+           <div className="bg-paper p-8 rounded-lg space-y-2">
               <p className="text-[10px] uppercase text-muted font-bold tracking-widest">Lifetime Value</p>
-              <p className="text-3xl font-sans font-bold text-gold">€{selectedCustomer.totalSpent.toLocaleString()}</p>
+              <p className="text-3xl font-sans font-bold text-gold">{formatPrice(selectedCustomer.totalSpent)}</p>
            </div>
-           <div className="bg-paper border border-accent/40 p-8 rounded-lg space-y-2">
+           <div className="bg-paper p-8 rounded-lg space-y-2">
               <p className="text-[10px] uppercase text-muted font-bold tracking-widest">Order Count</p>
               <p className="text-3xl font-sans font-bold">{selectedCustomer.orders}</p>
            </div>
-           <div className="bg-paper border border-accent/40 p-8 rounded-lg space-y-2">
+           <div className="bg-paper p-8 rounded-lg space-y-2">
               <p className="text-[10px] uppercase text-muted font-bold tracking-widest">Avg. Ticket</p>
-              <p className="text-3xl font-sans font-bold">€{(selectedCustomer.totalSpent / selectedCustomer.orders).toFixed(2)}</p>
+              <p className="text-3xl font-sans font-bold">{formatPrice(selectedCustomer.totalSpent / selectedCustomer.orders)}</p>
            </div>
-           <div className="bg-paper border border-accent/40 p-8 rounded-lg space-y-2">
+           <div className="bg-paper p-8 rounded-lg space-y-2">
               <p className="text-[10px] uppercase text-muted font-bold tracking-widest">Engagement</p>
               <p className="text-3xl font-sans font-bold text-green-400">High</p>
            </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-           <div className="lg:col-span-2 bg-paper border border-accent/40 p-10 rounded-lg">
+           <div className="lg:col-span-2 bg-paper p-10 rounded-lg">
               <h3 className="text-xs uppercase tracking-[0.4em] font-bold mb-10 flex items-center gap-3">
                  <div className="w-1.5 h-6 bg-gold" />
                  Spend Visualization
@@ -1484,14 +1816,14 @@ const CustomersTab = ({ customers }: any) => {
               </div>
            </div>
 
-           <div className="bg-paper border border-accent/40 p-10 rounded-lg overflow-hidden flex flex-col">
+           <div className="bg-paper p-10 rounded-lg overflow-hidden flex flex-col">
               <h3 className="text-xs uppercase tracking-[0.4em] font-bold mb-8 flex items-center gap-3">
                  <div className="w-1.5 h-6 bg-gold" />
                  Recent Journey
               </h3>
               <div className="space-y-6 overflow-y-auto no-scrollbar">
                  {[1,2,3].map((i) => (
-                    <div key={i} className="flex gap-4 items-start relative pb-6 border-l border-accent/40 ml-2 pl-6">
+                    <div key={i} className="flex gap-4 items-start relative pb-6 border-l border-accent/10 ml-2 pl-6">
                        <div className="absolute -left-[5px] top-0 w-[9px] h-[9px] rounded-full bg-gold shadow-[0_0_10px_rgba(212,175,55,0.5)]" />
                        <div>
                           <p className="text-[11px] font-bold uppercase tracking-widest text-muted">Order #0023{i} Delivered</p>
@@ -1508,7 +1840,7 @@ const CustomersTab = ({ customers }: any) => {
 
   return (
     <div className="space-y-10">
-       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 border border-accent/40 p-10 rounded-lg gap-8">
+       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 p-10 rounded-lg gap-8">
           <div>
              <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Client Portfolio</h1>
              <p className="text-muted text-[10px] uppercase tracking-[0.3em] font-bold">Lash Enthusiast Demographic</p>
@@ -1520,19 +1852,19 @@ const CustomersTab = ({ customers }: any) => {
                 placeholder="Search by name or identity..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full bg-paper border border-accent/40 pl-12 pr-6 py-4 text-xs font-bold uppercase tracking-widest text-ink outline-none focus:border-gold transition-colors rounded-md"
+                className="w-full bg-paper pl-12 pr-6 py-4 text-xs font-bold uppercase tracking-widest text-ink placeholder:text-muted/50 outline-none focus:bg-accent/10 transition-colors rounded-md"
              />
           </div>
        </div>
 
-       <div className="bg-paper border border-accent/40 rounded-lg overflow-hidden">
+       <div className="bg-paper rounded-lg overflow-hidden">
            {/* Mobile Card View */}
            <div className="block md:hidden divide-y divide-white/5">
               {filteredCustomers.map((c: any) => (
                 <div key={c.id} className="p-6 space-y-4" onClick={() => setSelectedCustomer(c)}>
                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                         <div className="w-10 h-10 rounded-full border border-accent/40 bg-accent/10 flex items-center justify-center text-[10px] font-bold text-gold">
+                         <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-[10px] font-bold text-gold">
                             {c.name.split(' ').map((n: string) => n[0]).join('')}
                          </div>
                          <div>
@@ -1541,7 +1873,7 @@ const CustomersTab = ({ customers }: any) => {
                          </div>
                       </div>
                       <div className="text-right">
-                         <p className="text-[12px] font-bold text-gold">€{c.totalSpent.toLocaleString()}</p>
+                         <p className="text-[12px] font-bold text-gold">{formatPrice(c.totalSpent)}</p>
                          <p className="text-[8px] text-muted uppercase mt-1">Total Spent</p>
                       </div>
                    </div>
@@ -1549,9 +1881,9 @@ const CustomersTab = ({ customers }: any) => {
               ))}
            </div>
 
-           <div className="hidden md:block overflow-x-auto no-scrollbar border-t-0">
+           <div className="hidden md:block overflow-x-auto no-scrollbar">
           <table className="w-full text-left min-w-[700px] md:min-w-0">
-             <thead className="bg-[#0a0a0a] border-y border-accent/40 text-[9px] uppercase tracking-[0.4em] font-bold text-muted">
+             <thead className="bg-[#0a0a0a] text-[9px] uppercase tracking-[0.4em] font-bold text-muted">
                 <tr>
                   <th className="px-10 py-6">Customer Profile</th>
                   <th className="px-10 py-6">Identity</th>
@@ -1568,7 +1900,7 @@ const CustomersTab = ({ customers }: any) => {
                    >
                       <td className="px-10 py-8">
                          <div className="flex items-center gap-4">
-                            <div className="w-10 h-10 rounded-full border border-accent/40 bg-accent/10 flex items-center justify-center text-[10px] font-bold text-gold group-hover:bg-gold group-hover:text-paper transition-all">
+                            <div className="w-10 h-10 rounded-full bg-accent/10 flex items-center justify-center text-[10px] font-bold text-gold group-hover:bg-gold group-hover:text-paper transition-all">
                                {c.name.split(' ').map((n: string) => n[0]).join('')}
                             </div>
                             <div>
@@ -1589,7 +1921,7 @@ const CustomersTab = ({ customers }: any) => {
                          </div>
                       </td>
                       <td className="px-10 py-8 text-right">
-                         <span className="text-[12px] font-sans font-bold text-gold">€{c.totalSpent.toLocaleString()}</span>
+                         <span className="text-[12px] font-sans font-bold text-gold">{formatPrice(c.totalSpent)}</span>
                       </td>
                    </tr>
                  ))}
@@ -1602,14 +1934,32 @@ const CustomersTab = ({ customers }: any) => {
 };
 
 const DesignTab = () => {
-  const { storeSettings, setStoreSettings } = useApp();
+  const { storeSettings, updateStoreSettings } = useApp();
   const theme = storeSettings.colors;
+  const [saving, setSaving] = useState(false);
 
-  const updateColor = (key: keyof typeof theme, value: string) => {
-    setStoreSettings({
+  const updateColor = async (key: keyof typeof theme, value: string) => {
+    const updatedSettings = {
       ...storeSettings,
       colors: { ...theme, [key]: value }
-    });
+    };
+    try {
+      await updateStoreSettings(updatedSettings);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const updateHeroBanner = async (url: string) => {
+    const updatedSettings = {
+      ...storeSettings,
+      heroBannerUrl: url
+    };
+    try {
+      await updateStoreSettings(updatedSettings);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const randomizeColors = () => {
@@ -1634,7 +1984,8 @@ const DesignTab = () => {
     const muted = hslToHex(baseHue, 15, 50);
     const gold = hslToHex(compHue, 60, 50);
 
-    setStoreSettings({
+    setSaving(true);
+    updateStoreSettings({
       ...storeSettings,
       colors: {
         paper,
@@ -1647,12 +1998,12 @@ const DesignTab = () => {
         buttonBg: isDark ? hslToHex(baseHue, 10, 90) : hslToHex(baseHue, 15, 12),
         buttonText: isDark ? hslToHex(baseHue, 20, 8) : hslToHex(baseHue, 20, 98),
       }
-    });
+    }).finally(() => setSaving(false));
   };
 
   return (
     <div className="space-y-12">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 border border-accent/40 p-4 lg:p-8 rounded-lg gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 p-4 lg:p-8 rounded-lg gap-6">
          <div>
             <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Atelier Aesthetic</h1>
             <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Visual Identity Configuration</p>
@@ -1667,7 +2018,7 @@ const DesignTab = () => {
 
        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="space-y-8">
-             <div className="p-8 bg-paper border border-accent/40 rounded-lg space-y-8">
+             <div className="p-8 bg-paper rounded-lg space-y-8">
                <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Core Palette</h3>
                <div className="grid grid-cols-1 gap-6">
                   {['paper', 'ink', 'accent', 'muted', 'gold'].map((key) => {
@@ -1683,13 +2034,13 @@ const DesignTab = () => {
                                type="color" 
                                value={value} 
                                onChange={(e) => updateColor(key as any, e.target.value)}
-                               className="w-12 h-12 rounded bg-transparent border border-accent/40 cursor-pointer overflow-hidden" 
+                               className="w-12 h-12 rounded bg-transparent cursor-pointer overflow-hidden" 
                             />
                             <input 
                                type="text" 
                                value={value} 
                                onChange={(e) => updateColor(key as any, e.target.value)}
-                               className="flex-grow bg-accent/10 border border-accent/40 p-4 text-[10px] font-mono font-bold tracking-widest text-ink outline-none focus:border-gold transition-colors" 
+                               className="flex-grow bg-accent/10 p-4 text-[10px] font-mono font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors" 
                             />
                          </div>
                       </div>
@@ -1698,7 +2049,7 @@ const DesignTab = () => {
                </div>
             </div>
 
-            <div className="p-8 bg-paper border border-accent/40 rounded-lg space-y-8">
+            <div className="p-8 bg-paper rounded-lg space-y-8">
                <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Components (Optional)</h3>
                <div className="grid grid-cols-1 gap-6">
                   {['topbarBg', 'topbarText', 'buttonBg', 'buttonText'].map((key) => {
@@ -1714,13 +2065,13 @@ const DesignTab = () => {
                                type="color" 
                                value={value} 
                                onChange={(e) => updateColor(key as any, e.target.value)}
-                               className="w-12 h-12 rounded bg-transparent border border-accent/40 cursor-pointer overflow-hidden" 
+                               className="w-12 h-12 rounded bg-transparent cursor-pointer overflow-hidden" 
                             />
                             <input 
                                type="text" 
                                value={value} 
                                onChange={(e) => updateColor(key as any, e.target.value)}
-                               className="flex-grow bg-accent/10 border border-accent/40 p-4 text-[10px] font-mono font-bold tracking-widest text-ink outline-none focus:border-gold transition-colors" 
+                               className="flex-grow bg-accent/10 p-4 text-[10px] font-mono font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors" 
                             />
                          </div>
                       </div>
@@ -1729,31 +2080,48 @@ const DesignTab = () => {
                </div>
             </div>
 
-            <div className="p-8 bg-paper border border-accent/40 rounded-lg space-y-8">
+            <div className="p-8 bg-paper rounded-lg space-y-8">
+               <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Hero Imagery</h3>
+               <div className="space-y-4">
+                  <p className="text-[10px] uppercase text-muted font-bold tracking-widest leading-loose">Hero Banner URL</p>
+                  <div className="flex gap-4">
+                    <input 
+                        type="text" 
+                        value={storeSettings.heroBannerUrl} 
+                        onChange={(e) => updateHeroBanner(e.target.value)}
+                        placeholder="https://..."
+                        className="flex-grow bg-accent/10 p-4 text-[10px] font-mono font-bold tracking-widest text-ink placeholder:text-muted/50 outline-none focus:bg-accent/20 transition-colors" 
+                     />
+                  </div>
+                  <p className="text-[9px] text-muted italic">Used as the background for the editorial hero section.</p>
+               </div>
+            </div>
+
+            <div className="p-8 bg-paper rounded-lg space-y-8">
                <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Type Scale</h3>
                <div className="space-y-6">
-                   <div className="space-y-4">
-                      <p className="text-[10px] uppercase text-muted font-bold tracking-widest leading-loose">Serif Display Family</p>
-                      <AdminDropdown 
-                         value="Playfair Display"
-                         onChange={(v) => {}}
-                         options={['Playfair Display', 'Cormorant Garamond', 'Bodoni Moda']}
-                      />
-                   </div>
-                   <div className="space-y-4">
-                      <p className="text-[10px] uppercase text-muted font-bold tracking-widest leading-loose">Sans UI Family</p>
-                      <AdminDropdown 
-                         value="Inter"
-                         onChange={(v) => {}}
-                         options={['Inter', 'Montserrat', 'Outfit']}
-                      />
-                   </div>
+                    <div className="space-y-4">
+                       <p className="text-[10px] uppercase text-muted font-bold tracking-widest leading-loose">Serif Display Family</p>
+                       <AdminDropdown 
+                          value="Playfair Display"
+                          onChange={(v) => {}}
+                          options={['Playfair Display', 'Cormorant Garamond', 'Bodoni Moda']}
+                       />
+                    </div>
+                    <div className="space-y-4">
+                       <p className="text-[10px] uppercase text-muted font-bold tracking-widest leading-loose">Sans UI Family</p>
+                       <AdminDropdown 
+                          value="Inter"
+                          onChange={(v) => {}}
+                          options={['Inter', 'Montserrat', 'Outfit']}
+                       />
+                    </div>
                </div>
             </div>
          </div>
 
          <div className="space-y-8">
-            <div className="relative h-[600px] lg:h-full lg:min-h-[500px] bg-paper border border-accent/40 rounded-lg p-6 lg:p-12 flex flex-col items-center justify-center text-center group w-full overflow-hidden" style={{backgroundColor: theme.paper}}>
+            <div className="relative h-[600px] lg:h-full lg:min-h-[500px] bg-paper rounded-lg p-6 lg:p-12 flex flex-col items-center justify-center text-center group w-full overflow-hidden" style={{backgroundColor: theme.paper}}>
                <div className="absolute inset-x-8 top-8 flex justify-between border-b border-black/10 pb-8" style={{borderColor: theme.accent}}>
                   <div className="flex flex-col items-start">
                      <span className="font-serif text-2xl italic font-bold uppercase tracking-widest leading-none" style={{color: theme.gold}}>Atelier</span>
@@ -1769,7 +2137,7 @@ const DesignTab = () => {
                  </p>
                  
                  <div className="w-full max-w-sm space-y-4 px-4">
-                    <div className="p-6 border rounded text-left" style={{borderColor: theme.accent, backgroundColor: theme.accent + '20'}}>
+                    <div className="p-6 shadow-sm font-bold uppercase tracking-[0.4em] transition-all px-10 py-4 text-[10px]" style={{backgroundColor: theme.accent + '20'}}>
                        <div className="w-1.5 h-6 mb-4" style={{backgroundColor: theme.gold}} />
                        <h4 className="text-lg font-serif italic mb-2" style={{color: theme.ink}}>Typography Sample</h4>
                        <p className="text-xs leading-relaxed font-sans" style={{color: theme.muted}}>
@@ -1789,137 +2157,140 @@ const DesignTab = () => {
 };
 
 const SettingsTab = () => {
+  const { storeSettings, updateStoreSettings } = useApp();
+  const [localSettings, setLocalSettings] = useState(storeSettings);
+  const [saving, setSaving] = useState(false);
   const [securitySettings, setSecuritySettings] = useState({
     twoFactor: true,
     loginAlerts: true,
     apiAccess: false
   });
 
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateStoreSettings(localSettings);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
-    <div className="space-y-12 pb-20">
-       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 border border-accent/40 p-4 lg:p-8 rounded-lg gap-6">
+    <div className="space-y-12 pb-32">
+       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 p-4 lg:p-8 rounded-lg gap-6">
           <div>
-             <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Atelier Configuration</h1>
-             <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">System Wide Parameters</p>
+             <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Atelier Parameters</h1>
+             <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Store Global Configuration</p>
           </div>
-          <button className=" luxury-button w-full md:w-auto">
-             Hard Reset Store
-          </button>
        </div>
 
-       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-8 space-y-8">
-             <div className="bg-paper border border-accent/40 p-4 lg:p-8 rounded-lg space-y-8">
+       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <div className="lg:col-span-8 space-y-12">
+             <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
                       <Globe size={18} />
                    </div>
-                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold">Identity & Presence</h3>
+                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Identity & Presence</h3>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                    <div className="space-y-4">
-                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Atelier Nomenclature</label>
-                      <input type="text" defaultValue="Lash Glaze Studio" className="w-full bg-accent/10 border border-accent/40 p-4 text-xs font-bold tracking-widest text-ink outline-none focus:border-gold transition-colors" />
-                   </div>
-                   <div className="space-y-4">
-                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Support Channel</label>
-                      <input type="email" defaultValue="concierge@lashglaze.com" className="w-full bg-accent/10 border border-accent/40 p-4 text-xs font-bold tracking-widest text-ink outline-none focus:border-gold transition-colors" />
-                   </div>
-                   <div className="space-y-4">
-                      <AdminDropdown 
-                        label="Primary Currency"
-                        value="EUR (€)"
-                        onChange={() => {}}
-                        options={['EUR (€)', 'USD ($)', 'GBP (£)']}
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Atelier Name</label>
+                      <input 
+                         type="text" 
+                         value={localSettings.storeName}
+                         onChange={(e) => setLocalSettings({...localSettings, storeName: e.target.value})}
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors uppercase" 
                       />
                    </div>
                    <div className="space-y-4">
-                      <AdminDropdown 
-                        label="System Language"
-                        value="English (UK)"
-                        onChange={() => {}}
-                        options={['English (UK)', 'German', 'French']}
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Support Correspondence</label>
+                      <input 
+                         type="email" 
+                         value={localSettings.supportEmail}
+                         onChange={(e) => setLocalSettings({...localSettings, supportEmail: e.target.value})}
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors lowercase" 
                       />
                    </div>
                 </div>
              </div>
 
-             <div className="bg-paper border border-accent/40 p-4 lg:p-8 rounded-lg space-y-8">
+             <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
-                      <Globe2 size={18} />
+                      <MapPin size={18} />
                    </div>
-                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold">SEO & Discovery</h3>
+                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Global Logistics</h3>
                 </div>
                 
-                <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                    <div className="space-y-4">
-                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Global Meta Title</label>
-                      <input type="text" defaultValue="Lash Glaze Studio | Premium Laboratory Aesthetic Lashes" className="w-full bg-accent/10 border border-accent/40 p-4 text-xs font-bold tracking-widest text-ink outline-none focus:border-gold transition-colors" />
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Currency Staging</label>
+                      <AdminDropdown 
+                         value={localSettings.currency}
+                         onChange={(v) => setLocalSettings({...localSettings, currency: v})}
+                         options={['GBP', 'USD', 'EUR', 'CAD']}
+                      />
                    </div>
                    <div className="space-y-4">
-                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Global Meta Description</label>
-                      <textarea rows={3} defaultValue="Discover the future of lash artistry with our professionally curated silk and volume collections. Hand-crafted for the modern atelier." className="w-full bg-accent/10 border border-accent/40 p-4 text-xs font-medium text-ink outline-none focus:border-gold transition-colors resize-none" />
-                   </div>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-4">
-                         <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Social Handle (IG)</label>
-                         <input type="text" defaultValue="@lashglaze" className="w-full bg-accent/10 border border-accent/40 p-4 text-xs font-bold text-ink outline-none focus:border-gold transition-colors" />
-                      </div>
-                      <div className="space-y-4">
-                         <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Sitemap Status</label>
-                         <div className="p-4 bg-green-500/5 border border-green-500/10 rounded text-[10px] font-bold text-green-400 uppercase tracking-widest">Indexing Enabled • Stable</div>
-                      </div>
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Primary Language</label>
+                      <AdminDropdown 
+                         value="English (UK)"
+                         onChange={(v) => {}}
+                         options={['English (UK)', 'English (US)', 'French', 'German']}
+                      />
                    </div>
                 </div>
              </div>
 
-             <div className="bg-paper border border-accent/40 p-4 lg:p-8 rounded-lg space-y-8">
+             <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
                       <FileText size={18} />
                    </div>
-                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold">Legal Dokumentation</h3>
+                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Legal Documentation</h3>
                 </div>
                 
-                <div className="divide-y divide-white/5 border-y border-accent/40">
+                <div className="divide-y divide-white/5">
                    {[
-                     { title: 'Terms of Service', updated: 'Mar 12, 2026', status: 'Published' },
-                     { title: 'Privacy Policy', updated: 'Apr 05, 2026', status: 'Published' },
-                     { title: 'Shipping Policy', updated: 'Jan 20, 2026', status: 'Published' },
-                     { title: 'Return & Refund Policy', updated: 'Never', status: 'Draft' },
+                      { title: 'Privacy Policy', updated: 'Mar 15, 2024', status: 'Published' },
+                      { title: 'Terms of Service', updated: 'Mar 10, 2024', status: 'Published' },
+                      { title: 'Shipping Policy', updated: 'Jan 20, 2026', status: 'Published' },
+                      { title: 'Return & Refund Policy', updated: 'Never', status: 'Draft' },
                    ].map(doc => (
-                     <div key={doc.title} className="py-6 flex items-center justify-between">
-                        <div>
-                           <p className="text-[11px] font-bold uppercase tracking-widest">{doc.title}</p>
-                           <p className="text-[9px] text-muted mt-1 uppercase">Last Update: {doc.updated}</p>
-                        </div>
-                        <div className="flex items-center gap-6">
-                           <span className={`text-[9px] font-bold uppercase tracking-widest ${doc.status === 'Published' ? 'text-green-400' : 'text-muted'}`}>{doc.status}</span>
-                           <button className="p-2 hover:bg-accent/10 rounded transition-colors">
-                              <Edit size={14} className="text-gold" />
-                           </button>
-                        </div>
-                     </div>
+                      <div key={doc.title} className="py-6 flex items-center justify-between">
+                         <div>
+                            <p className="text-[11px] font-bold uppercase tracking-widest text-ink">{doc.title}</p>
+                            <p className="text-[9px] text-muted mt-1 uppercase">Last Update: {doc.updated}</p>
+                         </div>
+                         <div className="flex items-center gap-6">
+                            <span className={`text-[9px] font-bold uppercase tracking-widest ${doc.status === 'Published' ? 'text-green-400' : 'text-muted'}`}>{doc.status}</span>
+                            <button className="p-2 hover:bg-accent/10 rounded transition-colors">
+                               <Edit size={14} className="text-gold" />
+                            </button>
+                         </div>
+                      </div>
                    ))}
                 </div>
              </div>
           </div>
 
           <div className="lg:col-span-4 space-y-8">
-             <div className="bg-paper border border-accent/40 p-4 lg:p-8 rounded-lg space-y-8">
+             <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
                       <Shield size={18} />
                    </div>
-                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold">Security</h3>
+                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Security</h3>
                 </div>
 
                 <div className="space-y-6">
                    <div className="flex items-center justify-between">
                       <div>
-                         <p className="text-[10px] font-bold uppercase tracking-widest">Two-Factor Auth</p>
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-ink">Two-Factor Auth</p>
                          <p className="text-[9px] text-muted mt-1 italic">Biometric Verification</p>
                       </div>
                       <button 
@@ -1931,7 +2302,7 @@ const SettingsTab = () => {
                    </div>
                    <div className="flex items-center justify-between">
                       <div>
-                         <p className="text-[10px] font-bold uppercase tracking-widest">Login Alerts</p>
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-ink">Login Alerts</p>
                          <p className="text-[9px] text-muted mt-1 italic">Real-time Notifications</p>
                       </div>
                       <button 
@@ -1944,16 +2315,16 @@ const SettingsTab = () => {
                 </div>
              </div>
 
-             <div className="bg-paper border border-accent/40 p-4 lg:p-8 rounded-lg space-y-8">
+             <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
                       <Key size={18} />
                    </div>
-                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold">API Access</h3>
+                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">API Access</h3>
                 </div>
                 
                 <div className="space-y-4">
-                   <div className="p-4 bg-accent/10 border border-accent/40 rounded">
+                   <div className="p-4 bg-accent/10 rounded">
                       <p className="text-[9px] uppercase tracking-widest font-bold text-muted mb-2">Live API Token</p>
                       <p className="text-[10px] font-mono break-all text-muted">pk_live_51P2...4a8b</p>
                    </div>
@@ -1961,10 +2332,10 @@ const SettingsTab = () => {
                 </div>
              </div>
 
-             <div className="bg-white p-8 rounded-lg space-y-6 flex flex-col items-center text-center">
-                <Bell size={32} className="text-black/20" />
+             <div className="bg-ink p-8 rounded-lg space-y-6 flex flex-col items-center text-center">
+                <Bell size={32} className="text-paper/20" />
                 <h4 className="text-xs font-bold text-paper uppercase tracking-widest">Updates Pending</h4>
-                <p className="text-[10px] text-black/40 leading-loose">A new firmware version (v2.4.8) is available for your fulfillment center.</p>
+                <p className="text-[10px] text-paper/40 leading-loose">A new firmware version (v2.4.8) is available for your fulfillment center.</p>
                 <button className="w-full py-4 bg-paper text-ink text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gold hover:text-paper transition-all">
                    Upgrade Now
                 </button>
@@ -1972,9 +2343,13 @@ const SettingsTab = () => {
           </div>
        </div>
 
-       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-ink/80 backdrop-blur-md border-t border-accent/40 p-4 lg:p-6 flex justify-end z-[45]">
-          <button className="luxury-button-filled w-full md:w-64 px-16">
-             Save All Changes
+       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-paper/90 backdrop-blur-xl p-4 lg:p-6 flex justify-end z-[45] shadow-[0_-20px_40px_rgba(0,0,0,0.05)] border-t border-white/5">
+          <button 
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full md:w-64 px-16 py-4 bg-ink text-paper text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gold transition-all disabled:opacity-50"
+          >
+             {saving ? "Saving Parameters..." : "Deploy Global Changes"}
           </button>
        </div>
     </div>

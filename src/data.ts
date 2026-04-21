@@ -6,17 +6,20 @@
 import { Product, Order, Customer, PaymentMethod, ShippingMethod, StoreSettings } from './types';
 
 export const INITIAL_SETTINGS: StoreSettings = {
-  name: "Lash Glaze",
-  currency: "€",
+  name: "Lash Glaze Strip Lashes",
+  currency: "£",
   logo: "",
+  heroBannerUrl: "https://t4.ftcdn.net/jpg/03/28/63/89/360_F_328638911_YLn1tIOK7etBCV7RbtDEU19ftzlS1hUQ.jpg",
+  instagramUrl: "https://instagram.com/lashglaze",
+  tiktokUrl: "https://tiktok.com/@lashglaze",
   colors: {
     ink: "#1A1A1A",
     paper: "#FDFCFB",
     accent: "#E8D5C4",
     muted: "#9A9187",
     gold: "#D4AF37",
-    topbarBg: "#1A1A1A",
-    topbarText: "#FDFCFB",
+    topbarBg: "#FDFCFB",
+    topbarText: "#1A1A1A",
     buttonBg: "#1A1A1A",
     buttonText: "#FDFCFB",
   }
@@ -27,8 +30,9 @@ export const INITIAL_PRODUCTS: Product[] = [
     id: '1',
     name: 'Eyelash Package',
     price: 41.95,
-    description: 'Short Mega Volume. The Power Cat-Eye. Make a statement with our best-selling short mega-volume strip lash designed to deliver bold definition with a sculpted cat-eye finish. Contains all your essential curations.',
-    image: 'https://i.fbcd.co/products/resized/resized-750-500/83a63143387ec9e70a7b9187a2569a7c4cc596d160690043e341d102e96600d3.jpg',
+    description: 'Short Mega Volume. The Power Cat-Eye. Make a statement with our best-selling short mega-volume strip lash designed to deliver bold definition with a sculpted cat-eye finish. Contains all your essential lashes.',
+    image: '/images/lash1.png',
+    gallery: ['/images/lash1.png', '/images/lash2.png', '/images/lash3.png', '/images/lash4.png'],
     category: 'Lashes',
     inventory: 50,
     status: 'active',

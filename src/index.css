@@ -7,8 +7,8 @@
   --accent: #E8D5C4;
   --muted: #9A9187;
   --gold: #D4AF37;
-  --topbarBg: #1A1A1A;
-  --topbarText: #FDFCFB;
+  --topbarBg: #FDFCFB;
+  --topbarText: #1A1A1A;
   --buttonBg: #1A1A1A;
   --buttonText: #FDFCFB;
 }
@@ -42,26 +42,38 @@
   body {
     @apply bg-paper text-ink font-sans antialiased;
   }
+  
+  button, input, textarea, select {
+    @apply !rounded-none;
+  }
 }
 
 @layer components {
   .luxury-button {
-    @apply px-8 py-3 bg-transparent border border-ink text-ink hover:bg-ink hover:text-paper transition-all duration-300 text-[11px] tracking-[0.2em] uppercase font-bold;
+    @apply px-8 py-3 bg-ink/5 text-ink hover:bg-ink hover:text-paper transition-all duration-500 text-[11px] tracking-[0.2em] uppercase font-bold backdrop-blur-sm shadow-xl rounded-none;
   }
   
   .luxury-button-filled {
-    @apply px-8 py-3 bg-buttonBg text-buttonText border border-buttonBg hover:bg-transparent hover:text-ink transition-all duration-300 text-[11px] tracking-[0.2em] uppercase font-bold;
+    @apply px-10 py-4 bg-buttonBg text-buttonText transition-all duration-500 text-[11px] tracking-[0.3em] uppercase font-bold shadow-2xl hover:scale-[1.02] active:scale-[0.98] rounded-none;
   }
 
   .admin-tab {
-    @apply px-4 py-2 text-[11px] font-bold uppercase tracking-widest transition-colors border-l-2 border-transparent hover:text-ink/80 text-muted;
+    @apply px-6 py-3 text-[11px] font-bold uppercase tracking-widest transition-all duration-300 hover:text-ink/80 text-muted relative rounded-none;
   }
   
   .admin-tab-active {
-    @apply border-ink text-ink bg-accent/20;
+    @apply text-gold bg-gold/10;
   }
   
   .card-minimal {
-    @apply bg-white border border-accent/50 p-6 transition-all hover:shadow-sm;
+    @apply backdrop-blur-3xl p-8 transition-all duration-700 hover:shadow-[0_30px_60px_rgba(0,0,0,0.12)] hover:-translate-y-2 rounded-none;
+  }
+
+  .glass-panel {
+    @apply backdrop-blur-3xl shadow-2xl shadow-ink/5 rounded-none overflow-hidden;
+  }
+
+  .premium-gradient {
+    @apply bg-gradient-to-br from-accent/30 via-white to-gold/10;
   }
 }
