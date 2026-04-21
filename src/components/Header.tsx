@@ -61,8 +61,8 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
           onClick={onNavigate}
           className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center group"
         >
-          <span className="font-serif text-2xl lg:text-3xl tracking-tight italic font-bold uppercase tracking-widest text-topbarText leading-none">Lash Glaze</span>
-          <span className="text-[9px] tracking-[0.4em] font-bold mt-1 opacity-50 uppercase leading-none text-topbarText">Strip Lashes</span>
+          <span className="font-serif text-lg lg:text-2xl tracking-tight italic font-bold uppercase tracking-widest text-topbarText leading-none">Lash Glaze</span>
+          <span className="text-[6px] lg:text-[8px] tracking-[0.4em] font-bold mt-1 opacity-50 uppercase leading-none text-topbarText">Strip Lashes</span>
         </button>
 
         <div className="flex items-center gap-6 lg:gap-8">
@@ -192,10 +192,10 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
             exit={{ opacity: 0, x: -100 }}
             className="fixed inset-0 z-[200] bg-topbarBg p-8 lg:hidden flex flex-col"
           >
-            <div className="flex justify-between items-center mb-16">
+            <div className="flex justify-between items-center mb-10">
                <div className="flex flex-col">
-                  <span className="font-serif text-2xl text-topbarText italic font-bold uppercase tracking-widest leading-none">Lash Glaze</span>
-                  <span className="text-[10px] tracking-[0.4em] font-bold opacity-40 uppercase leading-none mt-1 text-topbarText">Strip Lashes</span>
+                  <span className="font-serif text-lg text-topbarText italic font-bold uppercase tracking-widest leading-none">Lash Glaze</span>
+                  <span className="text-[7px] tracking-[0.4em] font-bold opacity-40 uppercase leading-none mt-1 text-topbarText">Strip Lashes</span>
                </div>
                <button className="text-topbarText p-2 -mr-2 bg-topbarText/5 rounded-none" onClick={() => setIsMenuOpen(false)}><X size={20} /></button>
             </div>

@@ -39,7 +39,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
 
   // Which timer to show?
   const activeTimerTarget = isPreOrderActive ? preOrderEndsAt : (isLimitedTimeActive ? limitedTimeEndsAt : null);
-  const timerLabel = isPreOrderActive ? 'Pre-order active' : (isLimitedTimeActive ? 'Limited Time' : (isReserveOrder ? 'Reserve Order Mode' : 'Window active'));
+  const timerLabel = isPreOrderActive ? 'Pre-order' : (isLimitedTimeActive ? 'Limited Time' : (isReserveOrder ? 'Reserve Order Mode' : 'Window active'));
 
 
 
@@ -111,20 +111,20 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
                     <span className="w-1 h-1 bg-accent rounded-full" />
                     <span>Drop 001</span>
                   </div>
-                  <h1 className="font-sans text-3xl lg:text-5xl font-bold tracking-tight text-ink">
+                  <h1 className="font-sans text-3xl lg:text-5xl font-bold tracking-tight text-ink flex flex-col lg:flex-row lg:items-center">
                     {product.name}
                     {isPreOrderActive && (
-                       <span className="ml-4 bg-gold text-paper px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg">
+                       <span className="lg:ml-4 mt-2 lg:mt-0 bg-gold text-paper px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg w-fit">
                          Pre-order
                        </span>
                     )}
                     {isLimitedTimeActive && (
-                       <span className="ml-4 bg-red-500 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg animate-pulse">
+                       <span className="lg:ml-4 mt-2 lg:mt-0 bg-red-500 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg animate-pulse w-fit">
                          Limited Time
                        </span>
                     )}
                     {isReserveOrder && (
-                       <span className="ml-4 bg-blue-500 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg">
+                       <span className="lg:ml-4 mt-2 lg:mt-0 bg-blue-500 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg w-fit">
                          Reserve Order
                        </span>
                     )}
@@ -146,9 +146,13 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
              </div>
 
              {/* Integrated Multi-Mode Timer Box */}
-             <div className="bg-accent/5 p-6 space-y-4 rounded-none shadow-inner">
+             <div 
+               className={`p-6 space-y-4 rounded-none shadow-inner transition-colors duration-500 ${
+                 isPreOrderActive ? 'bg-[#CC5500]' : (isLimitedTimeActive ? 'bg-[#800020]' : 'bg-accent/5')
+               }`}
+             >
                 <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-[0.3em]">
-                   <span className={activeTimerTarget ? 'text-ink' : 'text-red-500'}>
+                   <span className={activeTimerTarget ? (isPreOrderActive || isLimitedTimeActive ? 'text-white' : 'text-ink') : 'text-red-500'}>
                      {timerLabel}
                    </span>
                    {activeTimerTarget ? (

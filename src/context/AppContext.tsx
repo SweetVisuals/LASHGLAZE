@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, Order, Customer, PaymentMethod, ShippingMethod, StoreSettings } from '../types';
+import { Product, Order, Customer, PaymentMethod, StoreSettings, ShippingRegion, TaxRule, Coupon, Policy } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_SETTINGS } from '../data';
 
 import { supabase } from '../supabase';
@@ -20,19 +20,20 @@ interface AppContextType {
   orders: Order[];
   customers: Customer[];
   paymentMethods: PaymentMethod[];
-  shippingMethods: ShippingMethod[];
+  shippingRegions: ShippingRegion[];
+  taxRules: TaxRule[];
+  categories: Category[];
+  coupons: Coupon[];
+  policies: Policy[];
   cart: CartItem[];
-  isAdmin: boolean;
-  isCustomerLoggedIn: boolean;
-  dropExpiry: Date;
-  isDropActive: boolean;
-  storeSettings: StoreSettings;
-  user: any | null;
   
   setProducts: (products: Product[]) => void;
   setOrders: (orders: Order[]) => void;
   setPaymentMethods: (methods: PaymentMethod[]) => void;
-  setShippingMethods: (methods: ShippingMethod[]) => void;
+  setShippingRegions: (regions: ShippingRegion[]) => void;
+  setTaxRules: (rules: TaxRule[]) => void;
+  setCoupons: (coupons: Coupon[]) => void;
+  setPolicies: (policies: Policy[]) => void;
   setStoreSettings: (settings: StoreSettings) => void;
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
@@ -48,11 +49,25 @@ interface AppContextType {
   formatPrice: (amount: number) => string;
   signInWithGoogle: () => Promise<void>;
   togglePaymentMethod: (id: string, enabled: boolean) => Promise<void>;
-  toggleShippingMethod: (id: string, enabled: boolean) => Promise<void>;
+  saveCategory: (name: string, id?: string) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  saveShippingRegion: (region: ShippingRegion) => Promise<void>;
+  deleteShippingRegion: (id: string) => Promise<void>;
+  saveTaxRule: (rule: TaxRule) => Promise<void>;
+  deleteTaxRule: (id: string) => Promise<void>;
+  saveCoupon: (coupon: Coupon) => Promise<void>;
+  deleteCoupon: (id: string) => Promise<void>;
+  savePolicy: (policy: Policy) => Promise<void>;
   createOrder: (orderData: { customer_name: string, customer_email: string, total: number, items: { product_id: string, quantity: number, price: number }[] }) => Promise<any | null>;
   deleteOrder: (orderId: string) => Promise<boolean>;
   formatOrderNumber: (num?: number) => string;
   isInitialLoading: boolean;
+  isAdmin: boolean;
+  isCustomerLoggedIn: boolean;
+  storeSettings: StoreSettings;
+  user: any | null;
+  dropExpiry: Date;
+  isDropActive: boolean;
 }
 
 
@@ -63,7 +78,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([]);
+  const [shippingRegions, setShippingRegions] = useState<ShippingRegion[]>([]);
+  const [taxRules, setTaxRules] = useState<TaxRule[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [policies, setPolicies] = useState<Policy[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
@@ -149,24 +168,88 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           })) as any);
         }
 
-        // Fetch Shipping Methods
-        const { data: shippingData } = await supabase
-          .from('shipping_methods')
+        // Fetch Shipping Regions
+        const { data: regionsData } = await supabase
+          .from('shipping_regions')
           .select('*')
-          .order('id');
+          .order('name');
         
-        if (shippingData) {
-          setShippingMethods(shippingData as any);
+        if (regionsData) {
+          setShippingRegions(regionsData.map(r => ({
+            id: r.id,
+            name: r.name,
+            countries: r.countries || [],
+            shippingPrice: r.shipping_price,
+            isDefault: r.is_default
+          })));
+        }
+
+        // Fetch Tax Rules
+        const { data: taxData } = await supabase
+          .from('tax_rules')
+          .select('*')
+          .order('name');
+        
+        if (taxData) {
+          setTaxRules(taxData.map(t => ({
+            id: t.id,
+            name: t.name,
+            rate: t.rate,
+            regionId: t.region_id,
+            isGlobal: t.is_global
+          })));
+        }
+
+        // Fetch Coupons
+        const { data: couponsData } = await supabase
+          .from('coupons')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (couponsData) {
+          setCoupons(couponsData.map(c => ({
+            id: c.id,
+            code: c.code,
+            discountType: c.discount_type as any,
+            discountValue: c.discount_value,
+            minPurchase: c.min_purchase,
+            requiredProductId: c.required_product_id,
+            benefitProductId: c.benefit_product_id,
+            active: c.active,
+            expiryDate: c.expiry_date,
+            usageCount: c.usage_count || 0
+          })));
+        }
+
+        // Fetch Policies
+        const { data: policiesData } = await supabase
+          .from('policies')
+          .select('*')
+          .order('type');
+        
+        if (policiesData) {
+          setPolicies(policiesData.map(p => ({
+             id: p.id,
+             type: p.type as any,
+             content: p.content,
+             published: p.published,
+             updatedAt: p.updated_at
+          })));
         }
 
         // Fetch Payment Methods
-        const { data: paymentData } = await supabase
-          .from('payment_methods')
-          .select('*')
-          .order('id');
-        
         if (paymentData) {
           setPaymentMethods(paymentData as any);
+        }
+
+        // Fetch Categories
+        const { data: categoriesData } = await supabase
+          .from('categories')
+          .select('*')
+          .order('name');
+        
+        if (categoriesData) {
+          setCategories(categoriesData as any);
         }
       } catch (error) {
         console.error('Initialization error:', error);
@@ -409,16 +492,209 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const toggleShippingMethod = async (id: string, enabled: boolean) => {
+  const saveShippingRegion = async (region: ShippingRegion) => {
+    try {
+      const { data, error } = await supabase
+        .from('shipping_regions')
+        .upsert({
+          id: region.id.includes('-') ? region.id : undefined,
+          name: region.name,
+          countries: region.countries,
+          shipping_price: region.shippingPrice,
+          is_default: region.isDefault
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      if (data) {
+        const saved: ShippingRegion = {
+          id: data.id,
+          name: data.name,
+          countries: data.countries,
+          shippingPrice: data.shipping_price,
+          isDefault: data.is_default
+        };
+        setShippingRegions(prev => {
+          const exists = prev.find(r => r.id === saved.id);
+          if (exists) return prev.map(r => r.id === saved.id ? saved : r);
+          return [...prev, saved];
+        });
+      }
+    } catch (err) {
+      console.error('Error saving shipping region:', err);
+    }
+  };
+
+  const deleteShippingRegion = async (id: string) => {
+    try {
+      const { error } = await supabase.from('shipping_regions').delete().eq('id', id);
+      if (error) throw error;
+      setShippingRegions(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      console.error('Error deleting region:', err);
+    }
+  };
+
+  const saveTaxRule = async (rule: TaxRule) => {
+    try {
+      const { data, error } = await supabase
+        .from('tax_rules')
+        .upsert({
+          id: rule.id.includes('-') ? rule.id : undefined,
+          name: rule.name,
+          rate: rule.rate,
+          region_id: rule.regionId,
+          is_global: rule.isGlobal
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      if (data) {
+        const saved: TaxRule = {
+          id: data.id,
+          name: data.name,
+          rate: data.rate,
+          regionId: data.region_id,
+          isGlobal: data.is_global
+        };
+        setTaxRules(prev => {
+          const exists = prev.find(t => t.id === saved.id);
+          if (exists) return prev.map(t => t.id === saved.id ? saved : t);
+          return [...prev, saved];
+        });
+      }
+    } catch (err) {
+      console.error('Error saving tax rule:', err);
+    }
+  };
+
+  const deleteTaxRule = async (id: string) => {
+    try {
+      const { error } = await supabase.from('tax_rules').delete().eq('id', id);
+      if (error) throw error;
+      setTaxRules(prev => prev.filter(t => t.id !== id));
+    } catch (err) {
+      console.error('Error deleting tax rule:', err);
+    }
+  };
+
+  const saveCategory = async (name: string, id?: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .upsert(id ? { id, name } : { name })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      if (data) {
+        setCategories(prev => {
+          const exists = prev.find(c => c.id === data.id);
+          if (exists) return prev.map(c => c.id === data.id ? data : c);
+          return [...prev, data];
+        });
+      }
+    } catch (error) {
+      console.error('Error saving category:', error);
+    }
+  };
+
+  const deleteCategory = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('shipping_methods')
-        .update({ enabled })
+        .from('categories')
+        .delete()
         .eq('id', id);
+      
       if (error) throw error;
-      setShippingMethods(prev => prev.map(s => s.id === id ? { ...s, enabled } : s));
+      setCategories(prev => prev.filter(c => c.id !== id));
     } catch (error) {
-      console.error('Error toggling shipping method:', error);
+      console.error('Error deleting category:', error);
+    }
+  };
+
+  const saveCoupon = async (coupon: Coupon) => {
+    try {
+      const { data, error } = await supabase
+        .from('coupons')
+        .upsert({
+          id: coupon.id.includes('-') ? coupon.id : undefined,
+          code: coupon.code,
+          discount_type: coupon.discountType,
+          discount_value: coupon.discountValue,
+          min_purchase: coupon.minPurchase,
+          required_product_id: coupon.requiredProductId,
+          benefit_product_id: coupon.benefitProductId,
+          active: coupon.active,
+          expiry_date: coupon.expiryDate
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      if (data) {
+        const saved: Coupon = {
+          id: data.id,
+          code: data.code,
+          discountType: data.discount_type as any,
+          discountValue: data.discount_value,
+          minPurchase: data.min_purchase,
+          requiredProductId: data.required_product_id,
+          benefitProductId: data.benefit_product_id,
+          active: data.active,
+          expiryDate: data.expiry_date,
+          usageCount: data.usage_count
+        };
+        setCoupons(prev => {
+          const exists = prev.find(c => c.id === saved.id);
+          if (exists) return prev.map(c => c.id === saved.id ? saved : c);
+          return [...prev, saved];
+        });
+      }
+    } catch (err) {
+      console.error('Error saving coupon:', err);
+    }
+  };
+
+  const deleteCoupon = async (id: string) => {
+    try {
+      const { error } = await supabase.from('coupons').delete().eq('id', id);
+      if (error) throw error;
+      setCoupons(prev => prev.filter(c => c.id !== id));
+    } catch (err) {
+      console.error('Error deleting coupon:', err);
+    }
+  };
+
+  const savePolicy = async (policy: Policy) => {
+    try {
+      const { data, error } = await supabase
+        .from('policies')
+        .upsert({
+          id: policy.id,
+          type: policy.type,
+          content: policy.content,
+          published: policy.published,
+          updated_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      if (data) {
+        const saved: Policy = {
+           id: data.id,
+           type: data.type as any,
+           content: data.content,
+           published: data.published,
+           updatedAt: data.updated_at
+        };
+        setPolicies(prev => prev.map(p => p.type === saved.type ? saved : p));
+      }
+    } catch (err) {
+      console.error('Error saving policy:', err);
     }
   };
 
@@ -590,13 +866,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <AppContext.Provider value={{
-      products, orders, customers, paymentMethods, shippingMethods, cart, isAdmin, isCustomerLoggedIn,
+      products, orders, customers, paymentMethods, shippingRegions, taxRules, categories, coupons, policies, cart, isAdmin, isCustomerLoggedIn,
       dropExpiry, isDropActive, storeSettings,
-      setProducts, setOrders, setPaymentMethods, setShippingMethods, setStoreSettings,
+      setProducts, setOrders, setPaymentMethods, setShippingRegions, setTaxRules, setCoupons, setPolicies, setStoreSettings,
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       loginAsAdmin, logout, loginCustomer, logoutCustomer,
-      updateStoreSettings, saveProduct, deleteProductFromDb, formatPrice, user, signInWithGoogle,
-      togglePaymentMethod, toggleShippingMethod, createOrder, deleteOrder, formatOrderNumber,
+      updateStoreSettings, saveProduct, deleteProductFromDb, saveCategory, deleteCategory, formatPrice, user, signInWithGoogle,
+      togglePaymentMethod, saveShippingRegion, deleteShippingRegion, saveTaxRule, deleteTaxRule, saveCoupon, deleteCoupon, savePolicy,
+      createOrder, deleteOrder, formatOrderNumber,
       isInitialLoading
     }}>
       {children}

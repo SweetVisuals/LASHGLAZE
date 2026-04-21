@@ -12,6 +12,7 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { formatPrice as formatPriceUtil } from '../utils/format';
 import { supabase } from '../supabase';
+import { AuthModal } from '../components/AuthModal';
 
 // Initialize Stripe outside component to avoid recreating it
 const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLIC_KEY || '');
@@ -138,7 +139,11 @@ interface CheckoutProps {
 }
 
 export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect }) => {
-  const { cart, removeFromCart, updateCartQuantity, paymentMethods, shippingMethods, clearCart, createOrder, storeSettings, isCustomerLoggedIn, formatOrderNumber } = useApp();
+  const { 
+    cart, removeFromCart, updateCartQuantity, paymentMethods, clearCart, createOrder, 
+    storeSettings, isCustomerLoggedIn, formatOrderNumber, user,
+    shippingRegions, taxRules, coupons, saveCoupon
+  } = useApp();
   const formatPrice = (amount: number) => formatPriceUtil(amount, storeSettings.currency);
   
   const [customerInfo, setCustomerInfo] = useState({
@@ -147,7 +152,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
     email: '',
     address: '',
     city: '',
-    postalCode: ''
+    postalCode: '',
+    country: 'United Kingdom'
   });
   
   const [step, setStep] = useState(1);
@@ -163,7 +169,11 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
   const [subscriptionInterval, setSubscriptionInterval] = useState<'fortnightly' | 'monthly'>('fortnightly');
   const [createdOrder, setCreatedOrder] = useState<any>(null);
   const [copied, setCopied] = useState(false);
-  const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+  const [couponError, setCouponError] = useState('');
 
   const enabledPayments = [...paymentMethods.filter(p => p.enabled)].sort((a, b) => {
     if (a.type === 'card') return -1;
@@ -189,14 +199,69 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
     }
   }, [isSuccess, onSuccessRedirect, isCustomerLoggedIn]);
 
-  const selectedShipping = shippingMethods.find(s => s.enabled) || shippingMethods[0];
-  
+  // Shipping Calculation
+  const getSelectedRegion = () => {
+    const region = shippingRegions.find(r => r.countries.some(c => c.toLowerCase() === customerInfo.country.toLowerCase())) 
+                || shippingRegions.find(r => r.isDefault);
+    return region;
+  };
+
+  const selectedRegion = getSelectedRegion();
+  const shippingPrice = selectedRegion ? selectedRegion.shippingPrice : 0;
+
+  // Tax Calculation
+  const getTaxRate = () => {
+    if (!selectedRegion) return 0;
+    const rule = taxRules.find(r => r.regionId === selectedRegion.id) || taxRules.find(r => r.isGlobal);
+    return rule ? rule.rate : 0;
+  };
+
+  const taxRate = getTaxRate();
   const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  
+  // Discount Calculation
+  let discountAmount = 0;
+  if (appliedCoupon) {
+    if (appliedCoupon.discountType === 'percentage') {
+       discountAmount = subtotal * (appliedCoupon.discountValue / 100);
+    } else if (appliedCoupon.discountType === 'fixed') {
+       discountAmount = appliedCoupon.discountValue;
+    } else if (appliedCoupon.discountType === 'bogo') {
+       // 50% off benefitProductId if requiredProductId is also in cart
+       const hasRequired = cart.some(item => item.id === appliedCoupon.requiredProductId);
+       const benefitItem = cart.find(item => item.id === appliedCoupon.benefitProductId);
+       if (hasRequired && benefitItem) {
+          discountAmount = (benefitItem.price * 0.5); // 50% discount on 1 unit of benefit product
+       }
+    }
+  }
+
   const subscriptionDiscount = isSubscription ? (subscriptionInterval === 'fortnightly' ? subtotal * 0.15 : subtotal * 0.10) : 0;
-  const finalSubtotal = subtotal - subscriptionDiscount;
-  const total = finalSubtotal + (selectedShipping ? selectedShipping.price : 0);
+  const finalSubtotal = Math.max(0, subtotal - discountAmount - subscriptionDiscount);
+  const taxAmount = finalSubtotal * (taxRate / 100);
+  const total = finalSubtotal + shippingPrice + taxAmount;
+
+  const handleApplyPromo = () => {
+    setCouponError('');
+    const coupon = coupons.find(c => c.code.toLowerCase() === promoCode.toLowerCase() && c.active);
+    if (!coupon) {
+      setCouponError('Invalid or expired codex.');
+      return;
+    }
+    if (subtotal < coupon.minPurchase) {
+      setCouponError(`Min threshold of ${formatPrice(coupon.minPurchase)} required.`);
+      return;
+    }
+    setAppliedCoupon(coupon);
+  };
 
   const handleFinalize = () => {
+    if (isSubscription && !isCustomerLoggedIn) {
+      // Trigger login first
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     if (!agreeTerms || !agreeData) {
       setShowError(true);
       return;
@@ -212,7 +277,6 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
   };
 
   const handleApproveAuth = async () => {
-    setShow3DSecure(false);
     setIsProcessing(true);
     
     try {
@@ -231,6 +295,23 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
 
       if (orderResult) {
         setCreatedOrder(orderResult);
+        
+        // 2. If subscription, record it
+        if (isSubscription && isCustomerLoggedIn) {
+          const nextDate = new Date();
+          nextDate.setDate(nextDate.getDate() + (subscriptionInterval === 'fortnightly' ? 14 : 30));
+          
+          await supabase
+            .from('subscriptions')
+            .insert({
+              profile_id: user.id,
+              interval: subscriptionInterval,
+              total: total,
+              status: 'active',
+              next_delivery_date: nextDate.toISOString()
+            });
+        }
+
         setIsProcessing(false);
         setIsSuccess(true);
         clearCart();
@@ -282,7 +363,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
     );
   }
 
-  if (isSuccess) {
+  if (isSuccess && !show3DSecure) {
     const orderNum = createdOrder?.order_number ? formatOrderNumber(createdOrder.order_number) : '#LG-PENDING';
     
     const handleCopy = () => {
@@ -438,6 +519,29 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                   onChange={(e) => setCustomerInfo({...customerInfo, postalCode: e.target.value})}
                   className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
                 />
+                <select 
+                  value={customerInfo.country}
+                  onChange={(e) => setCustomerInfo({...customerInfo, country: e.target.value})}
+                  className="bg-accent/10 text-ink px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all appearance-none"
+                >
+                  <option value="United Kingdom">United Kingdom</option>
+                  <option value="United States">United States</option>
+                  <option value="Germany">Germany</option>
+                  <option value="France">France</option>
+                  <option value="Italy">Italy</option>
+                  <option value="Ireland">Ireland</option>
+                  <option value="Australia">Australia</option>
+                  <option value="Canada">Canada</option>
+                  <option value="Japan">Japan</option>
+                  <option value="Switzerland">Switzerland</option>
+                  <option value="Spain">Spain</option>
+                  <option value="New Zealand">New Zealand</option>
+                  <option value="Norway">Norway</option>
+                  <option value="Netherlands">Netherlands</option>
+                  <option value="China">China</option>
+                  <option value="United Arab Emirates">UAE</option>
+                  <option value="Other">Other (Worldwide)</option>
+                </select>
               </div>
             </section>
 
@@ -447,15 +551,18 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                  <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Delivery Priority</h2>
               </div>
               <div className="space-y-4">
-                {shippingMethods.filter(s => s.enabled).map(method => (
-                  <label key={method.id} className="flex items-center justify-between p-6 bg-accent/5 cursor-pointer hover:shadow-xl transition-all group shadow-sm">
-                    <div className="flex items-center gap-4">
-                       <input type="radio" name="shipping" defaultChecked={method.id === selectedShipping?.id} className="accent-ink w-4 h-4" />
-                       <span className="text-[10px] uppercase font-bold tracking-widest">{method.name}</span>
-                    </div>
-                    <span className="text-sm font-bold text-ink">{formatPrice(method.price)}</span>
-                  </label>
-                ))}
+                <div className="p-6 bg-accent/10 flex justify-between items-center group shadow-sm">
+                   <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-paper flex items-center justify-center text-gold">
+                         <Ship size={18} />
+                      </div>
+                      <div>
+                         <p className="text-[10px] uppercase font-bold tracking-widest">{selectedRegion?.name || 'Standard Courier'}</p>
+                         <p className="text-[8px] text-muted uppercase mt-1">Priority handling to {customerInfo.country}</p>
+                      </div>
+                   </div>
+                   <span className="text-sm font-bold text-ink">{formatPrice(shippingPrice)}</span>
+                </div>
               </div>
             </section>
 
@@ -658,7 +765,21 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
         {/* Right Column: Order Summary */}
         <div className="lg:col-span-12 xl:col-span-5">
            <div className="sticky top-32 bg-accent/5 p-8 lg:p-12 space-y-12 shadow-2xl">
-              <h2 className="font-serif text-3xl italic text-ink">Bag Summary</h2>
+              <div className="flex flex-col gap-4">
+                 <h2 className="font-serif text-3xl italic text-ink">Bag Summary</h2>
+                 <div className="flex gap-2">
+                    <input 
+                       type="text" 
+                       placeholder="PROMO CODE" 
+                       value={promoCode}
+                       onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                       className="bg-paper flex-grow px-4 py-3 text-[10px] font-bold tracking-widest outline-none border-b border-accent/10 focus:border-gold transition-colors"
+                    />
+                    <button onClick={handleApplyPromo} className="px-6 bg-ink text-paper text-[9px] font-bold uppercase tracking-widest hover:bg-gold transition-all">Apply</button>
+                 </div>
+                 {couponError && <p className="text-[9px] text-red-600 font-bold uppercase tracking-widest">{couponError}</p>}
+                 {appliedCoupon && <p className="text-[9px] text-green-600 font-bold uppercase tracking-widest flex items-center gap-2"><CheckCircle2 size={10}/> Applied: {appliedCoupon.code}</p>}
+              </div>
               
               <div className="space-y-10 max-h-[40vh] overflow-y-auto no-scrollbar pr-2">
                 {cart.map((item) => (
@@ -700,19 +821,27 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
 
               <div className="space-y-6 pt-12 shadow-[0_-1px_0_rgba(0,0,0,0.05)]">
                 <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] font-bold text-muted">
-                   <span>Subtotal</span>
-                   <span className="text-ink">{formatPrice(subtotal)}</span>
+                   <span>Logistics</span>
+                   <span className="text-ink">{formatPrice(shippingPrice)}</span>
                 </div>
+                {discountAmount > 0 && (
+                   <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] font-bold text-green-600">
+                      <span>Applied Offer</span>
+                      <span>-{formatPrice(discountAmount)}</span>
+                   </div>
+                )}
                 {isSubscription && (
                   <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] font-bold text-gold">
                     <span>Membership Discount</span>
                     <span>-{formatPrice(subscriptionDiscount)}</span>
                   </div>
                 )}
-                <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] font-bold text-muted">
-                   <span>Priority Shipping</span>
-                   <span className="text-ink">{formatPrice(selectedShipping?.price || 0)}</span>
-                </div>
+                {taxAmount > 0 && (
+                   <div className="flex justify-between text-[10px] uppercase tracking-[0.2em] font-bold text-muted">
+                      <span>Estimated Tax ({taxRate}%)</span>
+                      <span className="text-ink">{formatPrice(taxAmount)}</span>
+                   </div>
+                )}
                 <div className="flex justify-between text-ink p-6 bg-ink/5 mt-6 shadow-inner">
                    <span className="text-xs uppercase tracking-[0.4em] font-bold">Total Due</span>
                    <span className="text-2xl font-bold">{formatPrice(total)}</span>
@@ -770,41 +899,78 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                   <ShieldCheck size={32} className="text-ink" strokeWidth={1} />
                 </div>
                 
-                <h3 className="font-serif text-2xl italic text-ink mb-2">Secure Authentication</h3>
-                <p className="text-[9px] uppercase tracking-[0.3em] font-bold text-muted mb-8">Authorization Request Sent to Bank</p>
-                
-                <div className="bg-paper shadow-[inset_0_2px_15px_rgba(0,0,0,0.05)] p-6 mb-8">
-                  <p className="text-[8px] uppercase font-bold tracking-widest text-muted mb-1">Merchant</p>
-                  <p className="text-xs font-bold text-ink mb-4">Lash Glaze</p>
-                  <p className="text-[8px] uppercase font-bold tracking-widest text-muted mb-1">Amount Due</p>
-                  <p className="text-2xl font-bold font-serif italic">{formatPrice(total)}</p>
-                </div>
+                {isSuccess ? (
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-8 text-center"
+                  >
+                    <CheckCircle2 size={48} className="mx-auto text-green-600 mb-6" strokeWidth={1} />
+                    <h3 className="font-serif text-3xl italic text-ink mb-2">Order Confirmed</h3>
+                    <p className="text-[9px] uppercase tracking-[0.3em] font-bold text-muted mb-8">Reference ID: {createdOrder?.order_number ? formatOrderNumber(createdOrder.order_number) : '#LG-PENDING'}</p>
+                    
+                    <div className="bg-accent/5 p-8 mb-8 space-y-4 text-left">
+                       <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold">
+                          <span className="text-muted">Status</span>
+                          <span className="text-green-600">Finalized</span>
+                       </div>
+                       <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold">
+                          <span className="text-muted">Courier</span>
+                          <span className="text-ink">Expedited Atelier</span>
+                       </div>
+                       <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold pt-4 border-t border-ink/5">
+                          <span className="text-muted">Total Paid</span>
+                          <span className="text-ink">{formatPrice(total)}</span>
+                       </div>
+                    </div>
 
-                <div className="flex flex-col gap-3">
-                   <button 
-                     onClick={handleApproveAuth}
-                     className="bg-ink text-paper py-5 text-[9px] font-bold uppercase tracking-[0.4em] hover:bg-ink/90 transition-all shadow-xl"
-                   >
-                     Verify Transaction
-                   </button>
-                   <button 
-                     onClick={() => { setShow3DSecure(false); setIsProcessing(false); }}
-                     className="text-[8px] uppercase tracking-[0.2em] font-bold text-muted hover:text-red-700 transition-colors py-2"
-                   >
-                     Decline & Return
-                   </button>
-                </div>
+                    <button 
+                      onClick={() => { setShow3DSecure(false); onBack(); }}
+                      className="bg-ink text-paper py-5 w-full text-[10px] font-bold uppercase tracking-[0.4em] shadow-xl hover:bg-ink/90 transition-all"
+                    >
+                       Return to Storefront
+                    </button>
+                  </motion.div>
+                ) : (
+                  <>
+                    <h3 className="font-serif text-2xl italic text-ink mb-2">Secure Authentication</h3>
+                    <p className="text-[9px] uppercase tracking-[0.3em] font-bold text-muted mb-8">Authorization Request Sent to Bank</p>
+                    
+                    <div className="bg-paper shadow-[inset_0_2px_15px_rgba(0,0,0,0.05)] p-6 mb-8">
+                      <p className="text-[8px] uppercase font-bold tracking-widest text-muted mb-1">Merchant</p>
+                      <p className="text-xs font-bold text-ink mb-4">Lash Glaze</p>
+                      <p className="text-[8px] uppercase font-bold tracking-widest text-muted mb-1">Amount Due</p>
+                      <p className="text-2xl font-bold font-serif italic">{formatPrice(total)}</p>
+                    </div>
 
-                <div className="mt-8 flex items-center justify-center gap-4 border-t border-ink/5 pt-8">
-                   <span className="text-[8px] font-bold tracking-widest opacity-30">PCI DSS COMPLIANT</span>
-                   <div className="w-1 h-1 bg-ink/10 rounded-full" />
-                   <span className="text-[8px] font-bold tracking-widest opacity-30">TLS 1.3 ENCRYPTION</span>
-                </div>
+                    <div className="flex flex-col gap-3">
+                       <button 
+                         onClick={handleApproveAuth}
+                         className="bg-ink text-paper py-5 text-[9px] font-bold uppercase tracking-[0.4em] hover:bg-ink/90 transition-all shadow-xl"
+                       >
+                         Verify Transaction
+                       </button>
+                       <button 
+                         onClick={() => { setShow3DSecure(false); setIsProcessing(false); }}
+                         className="text-[8px] uppercase tracking-[0.2em] font-bold text-muted hover:text-red-700 transition-colors py-2"
+                       >
+                         Decline & Return
+                       </button>
+                    </div>
+
+                    <div className="mt-8 flex items-center justify-center gap-4 border-t border-ink/5 pt-8">
+                       <span className="text-[8px] font-bold tracking-widest opacity-30">PCI DSS COMPLIANT</span>
+                       <div className="w-1 h-1 bg-ink/10 rounded-full" />
+                       <span className="text-[8px] font-bold tracking-widest opacity-30">TLS 1.3 ENCRYPTION</span>
+                    </div>
+                  </>
+                )}
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 };

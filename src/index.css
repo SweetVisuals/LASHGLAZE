@@ -44,7 +44,7 @@
   }
   
   button, input, textarea, select {
-    @apply !rounded-none;
+    @apply !rounded-none text-base lg:text-sm;
   }
 }
 

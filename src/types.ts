@@ -61,6 +61,12 @@ export interface ShippingMethod {
   enabled: boolean;
 }
 
+export interface Category {
+  id: string;
+  name: string;
+  created_at?: string;
+}
+
 export interface StoreSettings {
   name: string;
   currency: string;
@@ -79,4 +85,41 @@ export interface StoreSettings {
     buttonBg: string;
     buttonText: string;
   }
+}
+
+export interface ShippingRegion {
+  id: string;
+  name: string;
+  countries: string[];
+  shippingPrice: number;
+  isDefault: boolean;
+}
+
+export interface TaxRule {
+  id: string;
+  name: string;
+  rate: number;
+  regionId?: string;
+  isGlobal: boolean;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discountType: 'percentage' | 'fixed' | 'bogo';
+  discountValue: number;
+  minPurchase: number;
+  requiredProductId?: string;
+  benefitProductId?: string;
+  active: boolean;
+  expiryDate?: string;
+  usageCount: number;
+}
+
+export interface Policy {
+  id: string;
+  type: 'refund' | 'privacy' | 'terms' | 'shipping';
+  content: string;
+  published: boolean;
+  updatedAt: string;
 }

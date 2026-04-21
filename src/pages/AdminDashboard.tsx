@@ -125,6 +125,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
     { id: 'payment', label: 'Payment', icon: CreditCard },
     { id: 'design', label: 'Design', icon: Palette },
     { id: 'customers', label: 'Customers', icon: Users },
+    { id: 'policies', label: 'Policies', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -258,6 +259,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
               {activeTab === 'payment' && <PaymentTab paymentMethods={paymentMethods} setPaymentMethods={setPaymentMethods} shippingMethods={shippingMethods} setShippingMethods={setShippingMethods} />}
               {activeTab === 'customers' && <CustomersTab customers={customers} />}
               {activeTab === 'design' && <DesignTab />}
+              {activeTab === 'policies' && <PoliciesTab />}
               {activeTab === 'settings' && <SettingsTab />}
             </motion.div>
           </AnimatePresence>
@@ -613,7 +615,7 @@ const StatsCard = ({ title, value, icon: Icon, trend, isLive, isActive, onClick 
 );
 
 const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Product) => void, onCancel: () => void, initialData?: Product }) => {
-  const { formatPrice } = useApp();
+  const { formatPrice, categories } = useApp();
   const [step, setStep] = useState(1);
   const [data, setData] = useState({
     id: initialData?.id || '',
@@ -722,7 +724,7 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                   label="Category"
                   value={data.category}
                   onChange={(v) => setData({...data, category: v})}
-                  options={['Lashes', 'Bundles', 'Tools', 'Accessories']}
+                  options={categories.length > 0 ? categories.map(c => c.name) : ['Lashes', 'Bundles', 'Tools', 'Accessories']}
                 />
                 <div className="space-y-2">
                    <label className="text-[10px] uppercase font-bold text-muted">Stock Level</label>
@@ -991,12 +993,12 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
 };
 
 const ProductsTab = ({ products, setProducts }: any) => {
-  const { formatPrice, saveProduct, deleteProductFromDb } = useApp();
+  const { formatPrice, saveProduct, deleteProductFromDb, categories, saveCategory, deleteCategory } = useApp();
   const [showAddWizard, setShowAddWizard] = useState(false);
   const [showCategoriesModal, setShowCategoriesModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [categories, setCategories] = useState(['Lashes', 'Accessories', 'Adhesives', 'Kits']);
   const [newCategory, setNewCategory] = useState('');
+  const [editingCategory, setEditingCategory] = useState<{id: string, name: string} | null>(null);
 
   const addProduct = async (newProduct: Product) => {
     await saveProduct(newProduct);
@@ -1015,16 +1017,19 @@ const ProductsTab = ({ products, setProducts }: any) => {
     setShowAddWizard(true);
   };
 
-  const addCategory = () => {
-    if (newCategory.trim() && !categories.includes(newCategory.trim())) {
-      setCategories([...categories, newCategory.trim()]);
+  const handleAddCategory = async () => {
+    if (newCategory.trim()) {
+      await saveCategory(newCategory.trim(), editingCategory?.id);
       setNewCategory('');
+      setEditingCategory(null);
     }
   };
 
-  const deleteCategory = (cat: string) => {
-    setCategories(categories.filter(c => c !== cat));
+  const startEditCategory = (cat: {id: string, name: string}) => {
+    setEditingCategory(cat);
+    setNewCategory(cat.name);
   };
+
 
   return (
     <div className="space-y-8">
@@ -1065,11 +1070,15 @@ const ProductsTab = ({ products, setProducts }: any) => {
                  
                  <div className="space-y-4 mb-8 overflow-y-auto pr-2 custom-scrollbar">
                     {categories.map(cat => (
-                      <div key={cat} className="flex justify-between items-center p-4 bg-accent/10  rounded group">
-                         <span className="text-[11px] font-bold uppercase tracking-widest text-ink">{cat}</span>
+                      <div key={cat.id} className="flex justify-between items-center p-4 bg-accent/10  rounded group">
+                         <span className="text-[11px] font-bold uppercase tracking-widest text-ink">{cat.name}</span>
                          <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                           <button className="text-muted hover:text-ink transition-colors"><Edit size={14} /></button>
-                           <button onClick={() => deleteCategory(cat)} className="text-muted hover:text-red-400 transition-colors"><Trash2 size={14} /></button>
+                           <button onClick={() => startEditCategory(cat)} className="text-muted hover:text-ink transition-colors"><Edit size={14} /></button>
+                           <button onClick={() => {
+                              if (window.confirm(`Are you sure you want to delete "${cat.name}"?`)) {
+                                deleteCategory(cat.id);
+                              }
+                           }} className="text-muted hover:text-red-400 transition-colors"><Trash2 size={14} /></button>
                          </div>
                       </div>
                     ))}
@@ -1080,12 +1089,12 @@ const ProductsTab = ({ products, setProducts }: any) => {
                       type="text" 
                       value={newCategory}
                       onChange={e => setNewCategory(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && addCategory()}
-                      placeholder="NEW CATEGORY NAME" 
+                      onKeyDown={e => e.key === 'Enter' && handleAddCategory()}
+                      placeholder={editingCategory ? "UPDATE NAME" : "NEW CATEGORY NAME"} 
                       className="flex-grow bg-paper  p-3 rounded text-[10px] uppercase font-bold tracking-widest text-ink placeholder:text-muted/50 outline-none focus:border-gold transition-colors" 
                     />
-                    <button onClick={addCategory} className="bg-gold text-paper px-6 py-3 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-colors">
-                       Add
+                    <button onClick={handleAddCategory} className="bg-gold text-paper px-6 py-3 rounded text-[10px] font-bold uppercase tracking-widest hover:bg-white transition-colors">
+                       {editingCategory ? 'Update' : 'Add'}
                     </button>
                  </div>
               </motion.div>
@@ -1430,19 +1439,153 @@ const OrdersTab = ({ orders, setOrders, deleteOrder }: any) => {
     </div>
   );
 };
+const ShippingRegionWizard = ({ isOpen, onClose, onSave, initialData }: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onSave: (r: any) => void,
+  initialData?: any 
+}) => {
+  const [data, setData] = useState({
+    id: initialData?.id || '',
+    name: initialData?.name || '',
+    countries: initialData?.countries?.join(', ') || '',
+    shippingPrice: initialData?.shippingPrice?.toString() || '0',
+    isDefault: initialData?.isDefault || false
+  });
 
-const DiscountWizard = ({ isOpen, onClose, storeSettings, formatPrice }: { 
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-ink/60 backdrop-blur-md" onClick={onClose} />
+      <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-paper max-w-xl w-full shadow-2xl relative overflow-hidden flex flex-col p-8 space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold uppercase tracking-widest">Region Logistics</h2>
+          <button onClick={onClose} className="text-muted"><X size={24} /></button>
+        </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-bold text-muted">Region Name</label>
+            <input value={data.name} onChange={e => setData({...data, name: e.target.value})} type="text" placeholder="e.g. European Union" className="w-full bg-accent/10 p-4 text-xs font-bold tracking-widest outline-none" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-bold text-muted">Countries (Comma Separated)</label>
+            <input value={data.countries} onChange={e => setData({...data, countries: e.target.value})} type="text" placeholder="e.g. Germany, France, Italy" className="w-full bg-accent/10 p-4 text-xs font-bold tracking-widest outline-none" />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-bold text-muted">Base Shipping Price</label>
+            <input value={data.shippingPrice} onChange={e => setData({...data, shippingPrice: e.target.value})} type="number" placeholder="0.00" className="w-full bg-accent/10 p-4 text-xs font-bold tracking-widest outline-none" />
+          </div>
+          <div className="flex items-center gap-3 py-2">
+            <div 
+              onClick={() => setData({...data, isDefault: !data.isDefault})}
+              className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer flex items-center ${data.isDefault ? 'bg-gold' : 'bg-accent/40'}`}
+            >
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${data.isDefault ? 'left-5.5' : 'left-0.5'}`} />
+            </div>
+            <span className="text-[10px] uppercase font-bold text-muted">Set as Default Region</span>
+          </div>
+        </div>
+        <button 
+          onClick={() => {
+            onSave({
+              ...data,
+              countries: data.countries.split(',').map(c => c.trim()).filter(c => c !== ''),
+              shippingPrice: parseFloat(data.shippingPrice)
+            });
+            onClose();
+          }}
+          className="w-full py-4 bg-ink text-paper text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gold transition-all"
+        >
+          Maintain Logistics
+        </button>
+      </motion.div>
+    </div>
+  );
+};
+
+const TaxRuleWizard = ({ isOpen, onClose, onSave, regions, initialData }: { 
+  isOpen: boolean, 
+  onClose: () => void, 
+  onSave: (t: any) => void,
+  regions: any[],
+  initialData?: any 
+}) => {
+  const [data, setData] = useState({
+    id: initialData?.id || '',
+    name: initialData?.name || '',
+    rate: initialData?.rate?.toString() || '20',
+    regionId: initialData?.regionId || 'global',
+    isGlobal: initialData?.isGlobal ?? true
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-ink/60 backdrop-blur-md" onClick={onClose} />
+      <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-paper max-w-xl w-full shadow-2xl relative overflow-hidden flex flex-col p-8 space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-xl font-bold uppercase tracking-widest">Tax Configuration</h2>
+          <button onClick={onClose} className="text-muted"><X size={24} /></button>
+        </div>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase font-bold text-muted">Rule Name</label>
+            <input value={data.name} onChange={e => setData({...data, name: e.target.value})} type="text" placeholder="e.g. EU VAT" className="w-full bg-accent/10 p-4 text-xs font-bold tracking-widest outline-none" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold text-muted">Tax Rate (%)</label>
+              <input value={data.rate} onChange={e => setData({...data, rate: e.target.value})} type="number" placeholder="20" className="w-full bg-accent/10 p-4 text-xs font-bold tracking-widest outline-none" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] uppercase font-bold text-muted">Scope</label>
+              <select 
+                value={data.regionId} 
+                onChange={e => setData({...data, regionId: e.target.value, isGlobal: e.target.value === 'global'})}
+                className="w-full bg-accent/10 p-4 text-xs font-bold tracking-widest outline-none appearance-none"
+              >
+                <option value="global">International (Global)</option>
+                {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+              </select>
+            </div>
+          </div>
+        </div>
+        <button 
+          onClick={() => {
+            onSave({
+              ...data,
+              rate: parseFloat(data.rate),
+              isGlobal: data.regionId === 'global',
+              regionId: data.regionId === 'global' ? undefined : data.regionId
+            });
+            onClose();
+          }}
+          className="w-full py-4 bg-ink text-paper text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gold transition-all"
+        >
+          Publish Tax Rule
+        </button>
+      </motion.div>
+    </div>
+  );
+};
+
+const DiscountWizard = ({ isOpen, onClose, storeSettings, products, onSave }: { 
   isOpen: boolean, 
   onClose: () => void, 
   storeSettings: any,
-  formatPrice: (n: number) => string 
+  products: any[],
+  onSave: (c: any) => void
 }) => {
   const [step, setStep] = useState(1);
   const [discountData, setDiscountData] = useState({
     code: '',
-    type: 'percentage' as 'percentage' | 'fixed',
-    value: '',
-    minValue: '',
+    discountType: 'percentage' as 'percentage' | 'fixed' | 'bogo',
+    discountValue: '',
+    minPurchase: '',
+    requiredProductId: '',
+    benefitProductId: '',
     expiryDate: ''
   });
 
@@ -1450,126 +1593,99 @@ const DiscountWizard = ({ isOpen, onClose, storeSettings, formatPrice }: {
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-ink/60 backdrop-blur-md"
-        onClick={onClose}
-      />
-      <motion.div 
-        initial={{ scale: 0.95, opacity: 0, y: 20 }}
-        animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        className="bg-paper max-w-xl w-full shadow-[0_50px_100px_rgba(0,0,0,0.3)] relative overflow-hidden flex flex-col"
-      >
-        <div className="flex items-center justify-between p-8 shadow-sm">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-ink/60 backdrop-blur-md" onClick={onClose} />
+      <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} className="bg-paper max-w-xl w-full shadow-2xl relative overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between p-8 border-b border-accent/10">
            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-gold/10 text-gold flex items-center justify-center">
-                 <Tag size={20} />
-              </div>
+              <div className="w-10 h-10 bg-gold/10 text-gold flex items-center justify-center"><Tag size={20} /></div>
               <div>
-                 <h3 className="text-xs uppercase tracking-[0.3em] font-bold">New Editorial Offer</h3>
-                 <p className="text-[9px] text-muted uppercase mt-1">Step {step} of 2</p>
+                 <h3 className="text-xs uppercase tracking-[0.3em] font-bold">Offer Architect</h3>
+                 <p className="text-[9px] text-muted uppercase mt-1">Staging Phase {step} / 2</p>
               </div>
            </div>
-           <button onClick={onClose} className="p-2 hover:bg-accent/10 transition-colors">
-              <X size={20} />
-           </button>
+           <button onClick={onClose} className="text-muted hover:text-ink"><X size={20} /></button>
         </div>
 
-        <div className="p-8 space-y-8">
+        <div className="p-8 space-y-6">
            {step === 1 ? (
-             <div className="space-y-6">
-                <div className="space-y-4">
-                   <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Promotion Code</label>
-                   <input 
-                     type="text" 
-                     placeholder="e.g. GLAZE20"
-                     value={discountData.code}
-                     onChange={(e) => setDiscountData({...discountData, code: e.target.value.toUpperCase()})}
-                     className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none focus:bg-accent/20 transition-all uppercase"
-                   />
+             <div className="space-y-4">
+                <div className="space-y-2">
+                   <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Incentive Code</label>
+                   <input type="text" placeholder="e.g. GLAZE50" value={discountData.code} onChange={(e) => setDiscountData({...discountData, code: e.target.value.toUpperCase()})} className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none uppercase" />
                 </div>
-                <div className="grid grid-cols-2 gap-6">
-                   <div className="space-y-4">
-                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Type</label>
-                      <div className="flex bg-accent/10 p-1">
-                         <button 
-                           onClick={() => setDiscountData({...discountData, type: 'percentage'})}
-                           className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-widest transition-all ${discountData.type === 'percentage' ? 'bg-gold text-paper' : 'text-muted hover:text-ink'}`}
-                         >
-                            Percentage
-                         </button>
-                         <button 
-                           onClick={() => setDiscountData({...discountData, type: 'fixed'})}
-                           className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-widest transition-all ${discountData.type === 'fixed' ? 'bg-gold text-paper' : 'text-muted hover:text-ink'}`}
-                         >
-                            Fixed Amount
-                         </button>
-                      </div>
+                <div className="grid grid-cols-1 gap-4">
+                   <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Benefit Mechanics</label>
+                   <div className="flex bg-accent/10 p-1">
+                      {['percentage', 'fixed', 'bogo'].map(t => (
+                        <button key={t} onClick={() => setDiscountData({...discountData, discountType: t as any})} className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-widest transition-all ${discountData.discountType === t ? 'bg-gold text-paper' : 'text-muted hover:text-ink'}`}>
+                           {t === 'bogo' ? 'Product Combo' : t}
+                        </button>
+                      ))}
                    </div>
-                   <div className="space-y-4">
-                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Value</label>
-                      <div className="relative">
-                         <input 
-                           type="number" 
-                           placeholder="0"
-                           value={discountData.value}
-                           onChange={(e) => setDiscountData({...discountData, value: e.target.value})}
-                           className="w-full bg-accent/10 p-5 pr-10 text-xs font-bold tracking-widest outline-none focus:bg-accent/20 transition-all font-mono"
-                         />
-                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-muted text-[10px] font-bold">
-                            {discountData.type === 'percentage' ? '%' : storeSettings.currency}
-                         </div>
-                      </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="space-y-2">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Incentive Value</label>
+                      <input type="number" placeholder="0" value={discountData.discountValue} onChange={(e) => setDiscountData({...discountData, discountValue: e.target.value})} className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none" />
+                   </div>
+                   <div className="flex items-end pb-5 text-[10px] font-bold text-muted">
+                      {discountData.discountType === 'percentage' ? '%' : discountData.discountType === 'fixed' ? storeSettings.currency : 'OFF SECOND ITEM'}
                    </div>
                 </div>
              </div>
            ) : (
              <div className="space-y-6">
-                <div className="space-y-4">
-                   <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Minimum Purchase Requirement</label>
-                   <div className="relative">
-                      <input 
-                        type="number" 
-                        placeholder="0.00"
-                        value={discountData.minValue}
-                        onChange={(e) => setDiscountData({...discountData, minValue: e.target.value})}
-                        className="w-full bg-accent/10 p-5 px-10 text-xs font-bold tracking-widest outline-none focus:bg-accent/20 transition-all font-mono"
-                      />
-                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted font-bold text-[10px]">
-                         {storeSettings.currency}
-                      </div>
-                   </div>
-                </div>
-                <div className="space-y-4">
-                   <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Expiry Logistics</label>
-                   <input 
-                     type="date" 
-                     value={discountData.expiryDate}
-                     onChange={(e) => setDiscountData({...discountData, expiryDate: e.target.value})}
-                     className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none focus:bg-accent/20 transition-all cursor-pointer"
-                   />
+                {discountData.discountType === 'bogo' && (
+                  <div className="space-y-4 bg-gold/5 p-4 rounded-lg">
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Primary Product (Must be in Basket)</label>
+                      <select value={discountData.requiredProductId} onChange={e => setDiscountData({...discountData, requiredProductId: e.target.value})} className="w-full bg-paper p-4 text-[10px] font-bold uppercase tracking-widest outline-none">
+                        <option value="">Select Product...</option>
+                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Benefit Product (Receives Discount)</label>
+                      <select value={discountData.benefitProductId} onChange={e => setDiscountData({...discountData, benefitProductId: e.target.value})} className="w-full bg-paper p-4 text-[10px] font-bold uppercase tracking-widest outline-none">
+                        <option value="">Select Targeted Product...</option>
+                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Min. Threshold</label>
+                    <input type="number" value={discountData.minPurchase} onChange={e => setDiscountData({...discountData, minPurchase: e.target.value})} placeholder="0.00" className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Sunset Date</label>
+                    <input type="date" value={discountData.expiryDate} onChange={e => setDiscountData({...discountData, expiryDate: e.target.value})} className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none" />
+                  </div>
                 </div>
              </div>
            )}
         </div>
 
-        <div className="p-8 bg-paper flex gap-4 shadow-inner justify-end">
-           {step === 2 && (
-             <button 
-               onClick={() => setStep(1)}
-               className="px-10 py-4 text-[10px] font-bold uppercase tracking-widest text-muted hover:text-ink transition-all"
-             >
-                Back
-             </button>
-           )}
+        <div className="p-8 bg-paper flex gap-4 border-t border-accent/10 justify-end">
+           {step === 2 && <button onClick={() => setStep(1)} className="px-10 py-4 text-[10px] font-bold uppercase text-muted">Staging</button>}
            <button 
-             onClick={() => step === 1 ? setStep(2) : onClose()}
+             onClick={() => {
+               if (step === 1) setStep(2);
+               else {
+                 onSave({
+                   ...discountData,
+                   discountValue: parseFloat(discountData.discountValue || '0'),
+                   minPurchase: parseFloat(discountData.minPurchase || '0'),
+                   active: true,
+                   usageCount: 0
+                 });
+                 onClose();
+               }
+             }}
              className="px-12 py-4 bg-ink text-paper text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gold transition-all"
            >
-              {step === 1 ? 'Next Phase' : 'Activate Offer'}
+              {step === 1 ? 'Configure Rules' : 'Publish Offer'}
            </button>
         </div>
       </motion.div>
@@ -1577,155 +1693,279 @@ const DiscountWizard = ({ isOpen, onClose, storeSettings, formatPrice }: {
   );
 };
 
-const PaymentTab = ({ paymentMethods, shippingMethods }: any) => {
-  const { formatPrice, togglePaymentMethod, toggleShippingMethod, storeSettings } = useApp();
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [promoCodes, setPromoCodes] = useState([
-    { code: 'WELCOME_GLAZE', discount: '20%', usage: 145, status: 'Active' },
-    { code: 'SPRING_LASH', discount: '£10', usage: 89, status: 'Active' },
-    { code: 'BETA_TESTER', discount: '100%', usage: 12, status: 'Expired' }
-  ]);
+const PaymentTab = () => {
+  const { 
+    formatPrice, togglePaymentMethod, paymentMethods, 
+    shippingRegions, saveShippingRegion, deleteShippingRegion,
+    taxRules, saveTaxRule, deleteTaxRule,
+    coupons, saveCoupon, deleteCoupon,
+    storeSettings, products
+  } = useApp();
+  
+  const [isCouponWizardOpen, setIsCouponWizardOpen] = useState(false);
+  const [isRegionWizardOpen, setIsRegionWizardOpen] = useState(false);
+  const [isTaxWizardOpen, setIsTaxWizardOpen] = useState(false);
+  const [editingRegion, setEditingRegion] = useState<any>(null);
+  const [editingTax, setEditingTax] = useState<any>(null);
+
+  const handleAddRegion = () => { setEditingRegion(null); setIsRegionWizardOpen(true); };
+  const handleEditRegion = (r: any) => { setEditingRegion(r); setIsRegionWizardOpen(true); };
+  const handleAddTax = () => { setEditingTax(null); setIsTaxWizardOpen(true); };
+  const handleEditTax = (t: any) => { setEditingTax(t); setIsTaxWizardOpen(true); };
 
   return (
     <div className="space-y-12">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+         {/* Payment Providers */}
          <div className="space-y-8">
             <h2 className="text-xl font-serif italic flex items-center gap-3">
                <CreditCard className="text-gold" size={20} />
-               Payment Providers
+               Secure Gateways
             </h2>
-            <div className="space-y-4">
+            <div className="space-y-3">
                 {paymentMethods.map((m: any) => (
-                  <div key={m.id} className="p-4 sm:p-6 bg-accent/10 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div key={m.id} className="p-6 bg-accent/10 flex items-center justify-between group hover:bg-accent/20 transition-all">
                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-gold">
-                           <CreditCard size={24} />
+                        <div className="w-12 h-12 bg-paper flex items-center justify-center text-gold shadow-sm group-hover:scale-110 transition-transform">
+                           <CreditCard size={20} />
                         </div>
                         <div>
-                           <p className="font-bold uppercase tracking-widest text-xs">{m.name}</p>
-                           <p className="text-[9px] text-muted uppercase tracking-widest mt-1">Status: {m.enabled ? 'Live' : 'Development'}</p>
+                           <p className="font-bold uppercase tracking-widest text-[11px]">{m.name}</p>
+                           <p className="text-[8px] text-muted uppercase tracking-widest mt-1">Status: {m.enabled ? 'Live Environment' : 'Sandbox Mode'}</p>
                         </div>
                      </div>
                      <div 
                        onClick={() => togglePaymentMethod(m.id, !m.enabled)}
                        className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer flex items-center ${m.enabled ? 'bg-gold' : 'bg-accent/40'}`}
-                       style={{ borderRadius: '999px' }}
                      >
-                       <motion.div 
-                         animate={{ x: m.enabled ? 24 : 4 }}
-                         className="absolute top-1 w-4 h-4 rounded-full bg-white transition-all shadow-lg" 
-                       />
+                       <motion.div animate={{ x: m.enabled ? 26 : 2 }} className="w-4 h-4 rounded-full bg-white shadow-md mx-0.5" />
                      </div>
                   </div>
                 ))}
             </div>
          </div>
 
+         {/* Logistics & Regions */}
          <div className="space-y-8">
             <h2 className="text-xl font-serif italic flex items-center gap-3">
                <Ship className="text-gold" size={20} />
-               Logistics & Taxes
+               Logistics Network
             </h2>
             <div className="space-y-6">
-               <div className="bg-accent/10 shadow-sm overflow-hidden">
-                  <div className="p-4 bg-accent/10 shadow-sm flex justify-between items-center">
-                     <p className="text-[10px] uppercase font-bold tracking-widest text-muted">Shipping Rates</p>
-                     <button className="text-[10px] uppercase font-bold text-gold hover:underline">Add Region</button>
+               <div className="bg-accent/10 overflow-hidden border border-white/5">
+                  <div className="p-4 bg-accent/20 flex justify-between items-center">
+                     <p className="text-[10px] uppercase font-bold tracking-widest">Zonal Shipping Rates</p>
+                     <button onClick={handleAddRegion} className="text-[10px] uppercase font-bold text-gold hover:underline flex items-center gap-2"><Plus size={12}/> Region</button>
                   </div>
                   <div className="divide-y divide-white/5">
-                     {shippingMethods.map((s: any) => (
-                       <div key={s.id} className="p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                             <div className="w-8 h-8 bg-accent/10 flex items-center justify-center">
-                                <Ship size={14} className="text-muted" />
-                             </div>
-                             <div>
-                                <p className="text-[11px] font-bold uppercase tracking-widest">{s.name}</p>
-                                <p className="text-[9px] text-muted uppercase">Rate: {formatPrice(s.price)}</p>
-                             </div>
+                     {shippingRegions.map((r: any) => (
+                       <div key={r.id} className="p-5 flex items-center justify-between hover:bg-white/[0.02]">
+                          <div>
+                             <p className="text-[11px] font-bold uppercase tracking-widest flex items-center gap-2">
+                               {r.name} {r.isDefault && <span className="text-[7px] bg-gold/20 text-gold px-1.5 py-0.5 rounded">Default</span>}
+                             </p>
+                             <p className="text-[9px] text-muted uppercase mt-1">Base: {formatPrice(r.shippingPrice)} • {r.countries.length} Countries</p>
                           </div>
-                          <div 
-                            onClick={() => toggleShippingMethod(s.id, !s.enabled)}
-                            className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer flex items-center ${s.enabled ? 'bg-gold' : 'bg-accent/40'}`}
-                            style={{ borderRadius: '999px' }}
-                          >
-                            <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${s.enabled ? 'left-5.5' : 'left-0.5'}`} />
+                          <div className="flex gap-4">
+                            <button onClick={() => handleEditRegion(r)} className="text-muted hover:text-gold transition-colors"><Edit size={14}/></button>
+                            <button onClick={() => deleteShippingRegion(r.id)} className="text-muted hover:text-red-500 transition-colors"><Trash2 size={14}/></button>
                           </div>
                        </div>
                      ))}
                   </div>
                </div>
 
-               <div className="bg-accent/10 p-6 rounded-xl space-y-4">
+               <div className="bg-accent/10 p-6 space-y-5">
                   <div className="flex justify-between items-center">
-                     <h4 className="text-[10px] uppercase font-bold tracking-widest">Tax Configuration</h4>
-                     <span className="text-[10px] text-green-400 font-bold">Standard 20% Applied</span>
+                     <h4 className="text-[10px] uppercase font-bold tracking-widest">Regional Tax Rules</h4>
+                     <button onClick={handleAddTax} className="text-[10px] uppercase font-bold text-gold hover:underline">Configure</button>
                   </div>
-                  <p className="text-[10px] text-muted leading-loose">Automated VAT calculation is enabled for all EU regions. International sales will have taxes stripped at checkout.</p>
-                  <button className="text-[10px] font-bold uppercase tracking-widest text-gold hover:underline">Edit Tax Rules</button>
+                  <div className="space-y-3">
+                    {taxRules.map(t => (
+                      <div key={t.id} className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-muted bg-paper/30 p-3">
+                        <span>{t.name} ({t.rate}%)</span>
+                        <div className="flex gap-3">
+                          <button onClick={() => handleEditTax(t)} className="hover:text-gold"><Edit size={12}/></button>
+                          <button onClick={() => deleteTaxRule(t.id)} className="hover:text-red-400"><X size={12}/></button>
+                        </div>
+                      </div>
+                    ))}
+                    {taxRules.length === 0 && <p className="text-[9px] text-muted font-medium italic">No localized tax rules established.</p>}
+                  </div>
                </div>
             </div>
          </div>
       </div>
 
-      <div className="bg-paper shadow-2xl overflow-hidden">
-         <div className="p-8 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      {/* Promotion Engine */}
+      <div className="bg-paper shadow-2xl relative overflow-hidden">
+         <div className="p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-accent/10">
             <div>
-               <h3 className="text-xl font-serif italic mb-2">Promotion & Incentive Engine</h3>
-               <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted">Coupon codes and seasonal discounts</p>
+               <h3 className="text-xl font-serif italic mb-2 text-gold">Editorial Promotion Suite</h3>
+               <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted">Strategic incentivization management</p>
             </div>
-            <button 
-              onClick={() => setIsWizardOpen(true)}
-              className="luxury-button w-full md:w-auto flex items-center justify-center gap-3"
-            >
-               <Plus size={16} />
-               Create New Offer
+            <button onClick={() => setIsCouponWizardOpen(true)} className="bg-gold text-paper px-10 py-5 font-bold text-[10px] uppercase tracking-[0.3em] flex items-center gap-4 hover:bg-white transition-all shadow-xl">
+               <Plus size={16} /> New Editorial Offer
             </button>
          </div>
-         <DiscountWizard 
-           isOpen={isWizardOpen} 
-           onClose={() => setIsWizardOpen(false)} 
-           storeSettings={storeSettings}
-           formatPrice={formatPrice}
-         />
+         
          <div className="overflow-x-auto no-scrollbar">
-            <table className="w-full text-left min-w-[600px]">
+            <table className="w-full text-left">
                <thead className="bg-[#0a0a0a] text-[9px] uppercase tracking-[0.3em] font-bold text-muted">
                   <tr>
-                     <th className="px-8 py-5">Promotion Code</th>
-                     <th className="px-8 py-5">Value</th>
-                     <th className="px-8 py-5">Redemptions</th>
-                     <th className="px-8 py-5">Condition</th>
+                     <th className="px-8 py-5">Codex</th>
+                     <th className="px-8 py-5">Benefit</th>
+                     <th className="px-8 py-5">Logic</th>
                      <th className="px-8 py-5 text-right">Action</th>
                   </tr>
                </thead>
                <tbody className="divide-y divide-white/5 font-sans">
-                  {promoCodes.map((promo) => (
-                    <tr key={promo.code} className="hover:bg-white/[0.02] transition-colors">
+                  {coupons.map((c) => (
+                    <tr key={c.id} className="hover:bg-white/[0.02] transition-colors group">
                        <td className="px-8 py-6">
-                          <span className="bg-gold/10 text-gold px-3 py-1 rounded text-[10px] font-bold tracking-widest">
-                             {promo.code}
+                          <span className="bg-gold/10 text-gold px-3 py-1 rounded text-[11px] font-bold font-serif italic tracking-widest">
+                             {c.code}
                           </span>
                        </td>
-                       <td className="px-8 py-6 text-[11px] font-bold text-ink">{promo.discount} OFF</td>
-                       <td className="px-8 py-6 text-[11px] text-muted font-bold">{promo.usage} USED</td>
-                       <td className="px-8 py-6 uppercase">
-                          <span className={`text-[9px] font-bold tracking-widest ${promo.status === 'Active' ? 'text-green-400' : 'text-red-400'}`}>
-                             {promo.status}
-                          </span>
+                       <td className="px-8 py-6 text-[11px] font-bold">
+                          {c.discountType === 'percentage' ? `${c.discountValue}% OFF` : c.discountType === 'fixed' ? `${formatPrice(c.discountValue)} OFF` : 'COMBO DISCOUNT'}
+                       </td>
+                       <td className="px-8 py-6 uppercase text-[9px] font-bold text-muted tracking-widest">
+                          {c.discountType === 'bogo' ? 'Conditional Product Logic' : `Threshold: Min ${formatPrice(c.minPurchase)}`}
                        </td>
                        <td className="px-8 py-6 text-right">
-                          <button className="text-[10px] uppercase font-bold tracking-widest text-muted hover:text-ink transition-colors">Archive</button>
+                          <button onClick={() => deleteCoupon(c.id)} className="text-[10px] uppercase font-bold text-muted hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100">Decommission</button>
                        </td>
                     </tr>
                   ))}
+                  {coupons.length === 0 && (
+                    <tr><td colSpan={4} className="p-20 text-center text-muted uppercase text-[10px] tracking-widest font-bold opacity-30">Archive Empty / No Active Campaigns</td></tr>
+                  )}
                </tbody>
             </table>
          </div>
       </div>
+
+      <DiscountWizard isOpen={isCouponWizardOpen} onClose={() => setIsCouponWizardOpen(false)} storeSettings={storeSettings} products={products} onSave={saveCoupon} />
+      <ShippingRegionWizard isOpen={isRegionWizardOpen} onClose={() => setIsRegionWizardOpen(false)} onSave={saveShippingRegion} initialData={editingRegion} />
+      <TaxRuleWizard isOpen={isTaxWizardOpen} onClose={() => setIsTaxWizardOpen(false)} onSave={saveTaxRule} regions={shippingRegions} initialData={editingTax} />
     </div>
   );
 };
+
+const PoliciesTab = () => {
+    const { policies, savePolicy } = useApp();
+    const [editingType, setEditingType] = useState<'refund' | 'privacy' | 'terms' | 'shipping' | null>(null);
+    const [content, setContent] = useState('');
+    const [isPublished, setIsPublished] = useState(true);
+
+    const startEditing = (p: any) => {
+        setEditingType(p.type);
+        setContent(p.content);
+        setIsPublished(p.published);
+    };
+
+    const handleSave = () => {
+        if (!editingType) return;
+        const policy = policies.find(p => p.type === editingType);
+        if (policy) {
+            savePolicy({ ...policy, content, published: isPublished });
+            setEditingType(null);
+        }
+    };
+
+    return (
+        <div className="space-y-12">
+            <div className="bg-accent/10 p-8 flex justify-between items-center rounded-lg shadow-inner">
+                <div>
+                   <h1 className="text-2xl font-serif italic text-gold">Legal Documents</h1>
+                   <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Policy & Compliance Editorial</p>
+                </div>
+                <div className="flex items-center gap-3 bg-paper p-3 rounded shadow-sm">
+                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                   <span className="text-[10px] uppercase font-bold tracking-widest text-muted">System Compliance: Active</span>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {policies.map(p => (
+                    <motion.div 
+                      key={p.type} 
+                      layoutId={p.type}
+                      className="bg-paper p-8 flex flex-col space-y-6 shadow-xl border border-white/5"
+                    >
+                        <div className="flex justify-between items-start">
+                            <div className="flex flex-col">
+                                <h3 className="text-xs uppercase tracking-[0.3em] font-bold mb-1">{p.type} Policy</h3>
+                                <span className={`text-[8px] font-bold uppercase tracking-widest ${p.published ? 'text-green-400' : 'text-red-400'}`}>
+                                    {p.published ? 'Published & Live' : 'Internal Draft'}
+                                </span>
+                            </div>
+                            <button onClick={() => startEditing(p)} className="p-3 bg-accent/10 hover:bg-gold hover:text-paper transition-all rounded shadow-sm">
+                                <Edit size={16} />
+                            </button>
+                        </div>
+                        <div className="text-[10px] text-muted line-clamp-3 leading-loose font-mono uppercase tracking-tighter opacity-60">
+                            {p.content}
+                        </div>
+                        <div className="pt-4 border-t border-accent/10 flex justify-between items-center text-[8px] text-muted uppercase font-bold tracking-widest">
+                            <span>Last Updated: {new Date(p.updatedAt).toLocaleDateString()}</span>
+                            <span>{p.content.split(' ').length} Words</span>
+                        </div>
+                    </motion.div>
+                ))}
+            </div>
+
+            <AnimatePresence>
+                {editingType && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingType(null)} className="absolute inset-0 bg-ink/80 backdrop-blur-3xl" />
+                        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-paper w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative z-[120] shadow-[0_50px_100px_rgba(0,0,0,0.5)]">
+                             <div className="p-10 border-b border-accent/10 flex justify-between items-center">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-gold/10 text-gold flex items-center justify-center"><FileText size={24} /></div>
+                                    <div>
+                                        <h2 className="text-xl font-serif italic uppercase tracking-widest">Editorial: {editingType} Policy</h2>
+                                        <p className="text-[10px] text-muted font-bold tracking-widest mt-1">Official store documentation</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-6">
+                                    <div className="flex items-center gap-3">
+                                        <div 
+                                          onClick={() => setIsPublished(!isPublished)}
+                                          className={`w-12 h-6 rounded-full transition-colors relative cursor-pointer flex items-center ${isPublished ? 'bg-gold' : 'bg-accent/40'}`}
+                                        >
+                                          <motion.div animate={{ x: isPublished ? 26 : 2 }} className="w-4 h-4 rounded-full bg-white shadow-md mx-0.5" />
+                                        </div>
+                                        <span className="text-[10px] uppercase font-bold tracking-widest text-muted">{isPublished ? 'PUBLISHED' : 'DRAFT'}</span>
+                                    </div>
+                                    <button onClick={() => setEditingType(null)} className="text-muted"><X size={24} /></button>
+                                </div>
+                             </div>
+                             <div className="flex-grow p-10 overflow-hidden flex flex-col space-y-4">
+                                <label className="text-[10px] uppercase font-bold text-muted tracking-[0.2em]">Markdown Editor</label>
+                                <textarea 
+                                    className="flex-grow bg-accent/5 p-10 text-xs font-mono text-ink tracking-wide leading-loose resize-none outline-none focus:bg-accent/10 transition-colors custom-scrollbar uppercase"
+                                    value={content}
+                                    onChange={(e) => setContent(e.target.value)}
+                                />
+                             </div>
+                             <div className="p-10 bg-accent/5 border-t border-accent/10 flex justify-end">
+                                <button 
+                                    onClick={handleSave} 
+                                    className="bg-gold text-paper px-16 py-5 text-[10px] font-bold uppercase tracking-[0.4em] hover:bg-white transition-all shadow-2xl"
+                                >
+                                    Commit Official Record
+                                </button>
+                             </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+};
+;
 
 const CustomersTab = ({ customers }: any) => {
   const { formatPrice } = useApp();

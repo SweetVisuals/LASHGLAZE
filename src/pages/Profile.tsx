@@ -26,6 +26,15 @@ interface UserOrder {
   order_number?: number;
 }
 
+interface Subscription {
+  id: string;
+  status: string;
+  interval: string;
+  total: number;
+  created_at: string;
+  next_delivery_date: string;
+}
+
 export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onOrderClick }) => {
   const { isCustomerLoggedIn, logoutCustomer, user, storeSettings, formatOrderNumber } = useApp();
   const formatPrice = (amount: number) => formatPriceUtil(amount, storeSettings.currency);
@@ -38,6 +47,7 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
   const [saving, setSaving] = useState(false);
   const [fullName, setFullName] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -86,6 +96,16 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
       if (ordersError) throw ordersError;
       setOrders(ordersData || []);
 
+      // Fetch Subscriptions
+      const { data: subsData, error: subsError } = await supabase
+        .from('subscriptions')
+        .select('*')
+        .eq('profile_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      if (subsError) throw subsError;
+      setSubscriptions(subsData || []);
+
     } catch (err) {
       console.error('Error loading profile:', err);
     } finally {
@@ -120,6 +140,23 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleCancelSubscription = async (id: string) => {
+     if (!confirm('Are you sure you wish to terminate this replenishment cycle? You will lose your priority member status.')) return;
+     
+     try {
+        const { error } = await supabase
+          .from('subscriptions')
+          .update({ status: 'cancelled' })
+          .eq('id', id);
+        
+        if (error) throw error;
+        setSubscriptions(prev => prev.map(s => s.id === id ? { ...s, status: 'cancelled' } : s));
+     } catch (err) {
+        console.error('Error cancelling subscription:', err);
+        alert('Failed to cancel cycle');
+     }
   };
 
   if (!isCustomerLoggedIn) {
@@ -237,15 +274,58 @@ export const Profile: React.FC<{ onOrderClick?: (id: string) => void }> = ({ onO
                  </div>
               </section>
 
-              <div className="bg-ink p-10 rounded-none shadow-2xl space-y-6">
-                 <h4 className="text-[9px] uppercase tracking-[0.3em] font-bold text-paper/40">Member Exclusive</h4>
-                 <p className="text-[10px] font-bold tracking-widest leading-relaxed uppercase text-paper/60">
-                    You have achieved elite status. Luxury styling consultations are now complimentary for your atelier.
-                 </p>
-                 <button className="text-[9px] font-bold uppercase tracking-[0.3em] text-gold flex items-center gap-2 group">
-                    Summon Specialist <ChevronRight size={12} className="transition-transform group-hover:translate-x-1" />
-                 </button>
-              </div>
+               <div className="bg-ink p-10 rounded-none shadow-2xl space-y-6">
+                  <h4 className="text-[9px] uppercase tracking-[0.3em] font-bold text-paper/40">Member Exclusive</h4>
+                  <p className="text-[10px] font-bold tracking-widest leading-relaxed uppercase text-paper/60">
+                     You have achieved elite status. Luxury styling consultations are now complimentary for your atelier.
+                  </p>
+                  <button className="text-[9px] font-bold uppercase tracking-[0.3em] text-gold flex items-center gap-2 group">
+                     Summon Specialist <ChevronRight size={12} className="transition-transform group-hover:translate-x-1" />
+                  </button>
+               </div>
+
+               {/* Subscriptions Management */}
+               <section className="bg-accent/10 p-10 rounded-none shadow-2xl space-y-8">
+                  <div className="flex items-center gap-4 mb-2">
+                     <Zap size={20} className="text-gold" />
+                     <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Replenishment Cycles</h2>
+                  </div>
+                  
+                  <div className="space-y-6">
+                     {subscriptions.length > 0 ? (
+                        subscriptions.map(sub => (
+                           <div key={sub.id} className="p-6 bg-accent/5 space-y-4 shadow-sm relative overflow-hidden">
+                              <div className="flex justify-between items-start">
+                                 <div>
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-ink">{sub.interval} Replenishment</p>
+                                    <p className="text-[8px] text-muted uppercase font-bold tracking-wider mt-1">Status: <span className={sub.status === 'active' ? 'text-green-600' : 'text-red-500'}>{sub.status}</span></p>
+                                 </div>
+                                 <p className="text-xs font-bold text-ink">{formatPrice(sub.total)}</p>
+                              </div>
+                              
+                              {sub.status === 'active' && (
+                                 <div className="pt-4 border-t border-accent/10 flex justify-between items-end">
+                                    <div>
+                                       <p className="text-[8px] text-muted uppercase font-bold tracking-widest mb-1">Next Delivery Due</p>
+                                       <p className="text-[10px] font-bold text-ink">{sub.next_delivery_date ? new Date(sub.next_delivery_date).toLocaleDateString() : 'Pending'}</p>
+                                    </div>
+                                    <button 
+                                      onClick={() => handleCancelSubscription(sub.id)}
+                                      className="text-[8px] uppercase tracking-widest font-bold text-red-500/40 hover:text-red-500 transition-colors"
+                                    >
+                                       Terminate Cycle
+                                    </button>
+                                 </div>
+                              )}
+                           </div>
+                        ))
+                     ) : (
+                        <div className="py-8 text-center opacity-30">
+                           <p className="text-[9px] uppercase tracking-widest font-bold">No active cycles found</p>
+                        </div>
+                     )}
+                  </div>
+               </section>
            </div>
 
            {/* Right Column: Order History */}
