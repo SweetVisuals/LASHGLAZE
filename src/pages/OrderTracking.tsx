@@ -11,7 +11,7 @@ import { supabase } from '../supabase';
 import { formatPrice as formatPriceUtil } from '../utils/format';
 
 export const OrderTracking: React.FC<{ initialOrderId?: string, onMyOrdersClick?: () => void }> = ({ initialOrderId, onMyOrdersClick }) => {
-  const { orders, storeSettings, formatOrderNumber } = useApp();
+  const { orders, storeSettings, formatOrderNumber, products } = useApp();
   const [orderId, setOrderId] = useState(initialOrderId || '');
   const [trackedOrder, setTrackedOrder] = useState<any>(null);
   const [error, setError] = useState('');
@@ -47,7 +47,7 @@ export const OrderTracking: React.FC<{ initialOrderId?: string, onMyOrdersClick?
         .from('orders')
         .select(`
           *,
-          order_items ( product_id, quantity, price )
+          order_items ( product_id, quantity, price, selected_color, selected_size, selected_style )
         `);
 
       if (isUuid) {
@@ -76,7 +76,10 @@ export const OrderTracking: React.FC<{ initialOrderId?: string, onMyOrdersClick?
         items: (dbOrder as any).order_items?.map((i: any) => ({
           productId: i.product_id,
           quantity: i.quantity,
-          price: i.price
+          price: i.price,
+          selectedColor: i.selected_color,
+          selectedSize: i.selected_size,
+          selectedStyle: i.selected_style
         })) || []
       };
 
@@ -215,12 +218,25 @@ export const OrderTracking: React.FC<{ initialOrderId?: string, onMyOrdersClick?
                <div className="space-y-6">
                   <h5 className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted">Order Payload</h5>
                   <div className="space-y-3">
-                    {trackedOrder.items?.map((item: any, i: number) => (
-                      <div key={i} className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-ink">
-                        <span>Lashes x {item.quantity}</span>
-                        <span>{formatPrice(item.price * item.quantity)}</span>
-                      </div>
-                    ))}
+                    {trackedOrder.items?.map((item: any, i: number) => {
+                      const product = products.find(p => p.id === item.productId);
+                      const productName = product ? product.name : 'Premium Lashes';
+                      return (
+                        <div key={i} className="py-2 border-b border-ink/5 last:border-b-0 space-y-1">
+                          <div className="flex justify-between items-start text-[10px] uppercase font-bold tracking-widest text-ink">
+                            <span>{productName} × {item.quantity}</span>
+                            <span>{formatPrice(item.price * item.quantity)}</span>
+                          </div>
+                          {(item.selectedStyle || item.selectedColor || item.selectedSize) && (
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[8px] uppercase tracking-[0.15em] font-bold text-accent/70 italic">
+                              {item.selectedStyle && <span>Style: {item.selectedStyle}</span>}
+                              {item.selectedColor && <span>Color: {item.selectedColor}</span>}
+                              {item.selectedSize && <span>Size: {item.selectedSize}</span>}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                     <div className="pt-4 shadow-[0_-1px_0_rgba(0,0,0,0.05)] flex justify-between items-center font-bold text-ink">
                       <span className="text-[10px] uppercase tracking-[0.2em]">Grand Total</span>
                       <span className="text-sm">{formatPrice(trackedOrder.total)}</span>

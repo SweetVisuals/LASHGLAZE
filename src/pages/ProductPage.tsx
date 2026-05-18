@@ -19,10 +19,23 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
   const { products, addToCart, dropExpiry, isDropActive, formatPrice, storeSettings } = useApp();
   const product = products.find(p => p.id === productId || p.slug === productId);
   const [quantity, setQuantity] = useState(1);
-  const [selectedLength, setSelectedLength] = useState('9-16mm');
   const [activeImage, setActiveImage] = useState(0);
 
   if (!product) return null;
+
+  const colors = product.variants?.colors || [];
+  const sizes = product.variants?.sizes || [];
+  const styles = product.variants?.styles || [];
+
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(colors[0]);
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(sizes[0]);
+  const [selectedStyle, setSelectedStyle] = useState<string | undefined>(styles[0]);
+
+  React.useEffect(() => {
+    setSelectedColor(colors[0]);
+    setSelectedSize(sizes[0]);
+    setSelectedStyle(styles[0]);
+  }, [productId, product]);
 
   const gallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image];
 
@@ -178,6 +191,83 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
              </div>
 
             <div className="space-y-10">
+               {/* Variant Selectors */}
+               {(colors.length > 0 || sizes.length > 0 || styles.length > 0) && (
+                 <div className="space-y-8 pt-4">
+                   {styles.length > 0 && (
+                     <div className="space-y-3">
+                       <div className="flex justify-between items-center">
+                         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Select Style</span>
+                         <span className="text-[10px] font-medium tracking-[0.1em] text-accent/80 italic">{selectedStyle}</span>
+                       </div>
+                       <div className="flex flex-wrap gap-2">
+                         {styles.map(styleOption => (
+                           <button
+                             key={styleOption}
+                             onClick={() => setSelectedStyle(styleOption)}
+                             className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all duration-300 rounded-none border-none ${
+                               selectedStyle === styleOption
+                                 ? 'bg-ink text-paper shadow-md'
+                                 : 'bg-accent/5 hover:bg-accent/10 text-ink opacity-70 hover:opacity-100'
+                             }`}
+                           >
+                             {styleOption}
+                           </button>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+
+                   {colors.length > 0 && (
+                     <div className="space-y-3">
+                       <div className="flex justify-between items-center">
+                         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Select Color</span>
+                         <span className="text-[10px] font-medium tracking-[0.1em] text-accent/80 italic">{selectedColor}</span>
+                       </div>
+                       <div className="flex flex-wrap gap-2">
+                         {colors.map(colorOption => (
+                           <button
+                             key={colorOption}
+                             onClick={() => setSelectedColor(colorOption)}
+                             className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all duration-300 rounded-none border-none ${
+                               selectedColor === colorOption
+                                 ? 'bg-ink text-paper shadow-md'
+                                 : 'bg-accent/5 hover:bg-accent/10 text-ink opacity-70 hover:opacity-100'
+                             }`}
+                           >
+                             {colorOption}
+                           </button>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+
+                   {sizes.length > 0 && (
+                     <div className="space-y-3">
+                       <div className="flex justify-between items-center">
+                         <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted">Select Size</span>
+                         <span className="text-[10px] font-medium tracking-[0.1em] text-accent/80 italic">{selectedSize}</span>
+                       </div>
+                       <div className="flex flex-wrap gap-2">
+                         {sizes.map(sizeOption => (
+                           <button
+                             key={sizeOption}
+                             onClick={() => setSelectedSize(sizeOption)}
+                             className={`px-5 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all duration-300 rounded-none border-none ${
+                               selectedSize === sizeOption
+                                 ? 'bg-ink text-paper shadow-md'
+                                 : 'bg-accent/5 hover:bg-accent/10 text-ink opacity-70 hover:opacity-100'
+                             }`}
+                           >
+                             {sizeOption}
+                           </button>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+                 </div>
+               )}
+
                {/* Action */}
                <div className="space-y-6 pt-6">
                   <div className="flex gap-4">
@@ -190,7 +280,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
                       disabled={!isAvailable}
                       onClick={() => {
                         if (isAvailable) {
-                          addToCart(product, quantity);
+                          addToCart(product, quantity, selectedColor, selectedSize, selectedStyle);
                           onCheckout();
                         }
                       }}

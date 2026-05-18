@@ -19,6 +19,7 @@ export interface Product {
   variants?: {
     colors?: string[];
     sizes?: string[];
+    styles?: string[];
   };
   preOrderEnabled?: boolean;
   preOrderEndsAt?: string;
@@ -34,7 +35,14 @@ export interface Order {
   customerId: string;
   customerName: string;
   customerEmail?: string;
-  items: { productId: string; quantity: number; price: number }[];
+  items: { 
+    productId: string; 
+    quantity: number; 
+    price: number; 
+    selectedColor?: string; 
+    selectedSize?: string; 
+    selectedStyle?: string; 
+  }[];
   total: number;
   status: 'pending' | 'processed' | 'shipped' | 'out-for-delivery' | 'delivered' | 'cancelled';
   createdAt: string;

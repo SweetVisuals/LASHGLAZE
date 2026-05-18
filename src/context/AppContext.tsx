@@ -11,8 +11,35 @@ import { supabase } from '../supabase';
 import { Database } from '../types/database';
 import { formatPrice as formatPriceUtil } from '../utils/format';
 import { getUTMs, clearUTMs } from '../utils/utm';
-interface CartItem extends Product {
+export interface CartItem {
+  id: string;
+  productId: string;
+  name: string;
+  brand?: string;
+  price: number;
+  salePrice?: number;
+  description: string;
+  image: string;
+  gallery?: string[];
+  category: string;
+  tags?: string[];
+  inventory: number;
+  status: 'active' | 'draft';
+  variants?: {
+    colors?: string[];
+    sizes?: string[];
+    styles?: string[];
+  };
+  preOrderEnabled?: boolean;
+  preOrderEndsAt?: string;
+  preOrderPrice?: number;
+  limitedTimeEnabled?: boolean;
+  limitedTimeEndsAt?: string;
+  slug?: string;
   quantity: number;
+  selectedColor?: string;
+  selectedSize?: string;
+  selectedStyle?: string;
 }
 
 interface AppContextType {
@@ -39,7 +66,7 @@ interface AppContextType {
   saveShowcaseReview: (review: ShowcaseReview) => Promise<void>;
   deleteShowcaseReview: (id: string) => Promise<void>;
   setStoreSettings: (settings: StoreSettings) => void;
-  addToCart: (product: Product, quantity?: number) => void;
+  addToCart: (product: Product, quantity?: number, selectedColor?: string, selectedSize?: string, selectedStyle?: string) => void;
   removeFromCart: (productId: string) => void;
   updateCartQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -66,7 +93,14 @@ interface AppContextType {
     customer_name: string; 
     customer_email: string; 
     total: number; 
-    items: { product_id: string, quantity: number, price: number }[];
+    items: { 
+      product_id: string, 
+      quantity: number, 
+      price: number,
+      selected_color?: string,
+      selected_size?: string,
+      selected_style?: string
+    }[];
     stripe_payment_intent_id?: string;
     paypal_order_id?: string;
     payment_method_id?: string;
@@ -121,7 +155,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
       return data;
     };
 
@@ -393,7 +427,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               id, profile_id, customer_name, customer_email, total, status, created_at, order_number,
               stripe_payment_intent_id, paypal_order_id, payment_method_id, paypal_email,
               utm_source, utm_medium, utm_campaign,
-              order_items ( product_id, quantity, price )
+              order_items ( product_id, quantity, price, selected_color, selected_size, selected_style )
             `)
             .order('created_at', { ascending: false });
           
@@ -423,7 +457,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               items: (o as any).order_items?.map((i: any) => ({
                 productId: i.product_id,
                 quantity: i.quantity,
-                price: i.price
+                price: i.price,
+                selectedColor: i.selected_color || undefined,
+                selectedSize: i.selected_size || undefined,
+                selectedStyle: i.selected_style || undefined
               })) || []
             }));
             setOrders(fetchedOrders);
@@ -451,7 +488,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               stripe_payment_intent_id, paypal_order_id, payment_method_id, paypal_email,
               shipping_address, shipping_city, shipping_postal_code, shipping_country, tracking_number,
               utm_source, utm_medium, utm_campaign,
-              order_items ( product_id, quantity, price )
+              order_items ( product_id, quantity, price, selected_color, selected_size, selected_style )
             `)
             .eq('profile_id', user.id)
             .order('created_at', { ascending: false });
@@ -481,7 +518,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               items: (o as any).order_items?.map((i: any) => ({
                 productId: i.product_id,
                 quantity: i.quantity,
-                price: i.price
+                price: i.price,
+                selectedColor: i.selected_color || undefined,
+                selectedSize: i.selected_size || undefined,
+                selectedStyle: i.selected_style || undefined
               })) || []
             }));
             setOrders(fetchedOrders);
@@ -529,7 +569,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     root.style.setProperty('--limitedTime', storeSettings.colors.limitedTime);
   }, [storeSettings.colors]);
 
-  const addToCart = (product: Product, quantity: number = 1) => {
+  const addToCart = (
+    product: Product, 
+    quantity: number = 1,
+    selectedColor?: string,
+    selectedSize?: string,
+    selectedStyle?: string
+  ) => {
     const now = new Date();
     const preOrderEndsAt = product.preOrderEndsAt ? new Date(product.preOrderEndsAt) : null;
     const limitedTimeEndsAt = product.limitedTimeEndsAt ? new Date(product.limitedTimeEndsAt) : null;
@@ -540,18 +586,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isAvailable = isDropActive || isPreOrderActive || isLimitedTimeActive || isReserveOrder;
 
     if (!isAvailable) return; 
+
+    const variantId = [
+      product.id,
+      selectedColor || '',
+      selectedSize || '',
+      selectedStyle || ''
+    ].filter(Boolean).join('-');
+
     setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
+      const existing = prev.find(item => item.id === variantId);
       const currentPrice = (isPreOrderActive && product.preOrderPrice) 
         ? product.preOrderPrice 
         : (product.salePrice && product.salePrice < product.price ? product.salePrice : product.price);
       
       if (existing) {
         return prev.map(item => 
-          item.id === product.id ? { ...item, quantity: item.quantity + quantity, price: currentPrice } : item
+          item.id === variantId ? { ...item, quantity: item.quantity + quantity, price: currentPrice } : item
         );
       }
-      return [...prev, { ...product, quantity, price: currentPrice }];
+      return [...prev, { 
+        ...product, 
+        id: variantId, 
+        productId: product.id, 
+        quantity, 
+        price: currentPrice,
+        selectedColor,
+        selectedSize,
+        selectedStyle
+      }];
     });
   };
 
@@ -1022,7 +1085,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     customer_name: string, 
     customer_email: string, 
     total: number, 
-    items: { product_id: string, quantity: number, price: number }[],
+    items: { 
+      product_id: string, 
+      quantity: number, 
+      price: number,
+      selected_color?: string,
+      selected_size?: string,
+      selected_style?: string
+    }[],
     stripe_payment_intent_id?: string,
     paypal_order_id?: string,
     payment_method_id?: string,
@@ -1066,7 +1136,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         order_id: order.id,
         product_id: item.product_id,
         quantity: item.quantity,
-        price: item.price
+        price: item.price,
+        selected_color: item.selected_color || null,
+        selected_size: item.selected_size || null,
+        selected_style: item.selected_style || null
       }));
 
       const { error: itemsError } = await supabase
@@ -1096,7 +1169,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         items: orderData.items.map(i => ({
           productId: i.product_id,
           quantity: i.quantity,
-          price: i.price
+          price: i.price,
+          selectedColor: i.selected_color,
+          selectedSize: i.selected_size,
+          selectedStyle: i.selected_style
         }))
       };
 

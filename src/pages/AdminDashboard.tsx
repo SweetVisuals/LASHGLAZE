@@ -1345,7 +1345,7 @@ const ProductsTab = ({ products, setProducts }: any) => {
 };
 
 const OrdersTab = ({ orders, setOrders, deleteOrder, updateOrder }: any) => {
-  const { formatPrice, formatOrderNumber } = useApp();
+  const { formatPrice, formatOrderNumber, products } = useApp();
   const [expandedOrders, setExpandedOrders] = useState<string[]>([]);
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
   const [filter, setFilter] = useState('All Orders');
@@ -1480,12 +1480,25 @@ const OrdersTab = ({ orders, setOrders, deleteOrder, updateOrder }: any) => {
                         className="pt-4 border-t border-accent/10 mt-4 flex flex-col gap-4 overflow-hidden"
                       >
                          <div className="space-y-2">
-                           {o.items.map((item: any, i: number) => (
-                             <div key={i} className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-muted">
-                               <span>Lash x {item.quantity}</span>
-                               <span>{formatPrice(item.price * item.quantity)}</span>
-                             </div>
-                           ))}
+                           {o.items.map((item: any, i: number) => {
+                             const product = products.find(p => p.id === item.productId);
+                             const productName = product ? product.name : 'Premium Lashes';
+                             return (
+                               <div key={i} className="py-2 border-b border-white/5 last:border-b-0 space-y-1">
+                                 <div className="flex justify-between items-center text-[10px] uppercase font-bold tracking-widest text-muted">
+                                   <span>{productName} × {item.quantity}</span>
+                                   <span>{formatPrice(item.price * item.quantity)}</span>
+                                 </div>
+                                 {(item.selectedStyle || item.selectedColor || item.selectedSize) && (
+                                   <div className="flex flex-wrap gap-x-2 text-[8px] uppercase tracking-[0.15em] font-bold text-gold italic">
+                                     {item.selectedStyle && <span>Style: {item.selectedStyle}</span>}
+                                     {item.selectedColor && <span>Color: {item.selectedColor}</span>}
+                                     {item.selectedSize && <span>Size: {item.selectedSize}</span>}
+                                   </div>
+                                 )}
+                               </div>
+                             );
+                           })}
                          </div>
                          
                          <div className="bg-accent/5 p-4 rounded text-[10px] space-y-2 uppercase font-bold tracking-widest mt-2 border-none">
@@ -1591,14 +1604,27 @@ const OrdersTab = ({ orders, setOrders, deleteOrder, updateOrder }: any) => {
                                <div className="space-y-6">
                                   <h4 className="text-[9px] uppercase tracking-[0.4em] font-bold text-gold/60">Order Snapshot</h4>
                                   <div className="space-y-3">
-                                     {o.items.map((item: any, i: number) => (
-                                       <div key={i} className="flex justify-between items-center bg-accent/10 p-4 rounded border-none">
-                                          <div className="text-[10px] uppercase font-bold tracking-widest">
-                                            Lash x {item.quantity}
-                                          </div>
-                                          <div className="text-[10px] font-bold text-muted">{formatPrice(item.price * item.quantity)}</div>
-                                       </div>
-                                     ))}
+                                     {o.items.map((item: any, i: number) => {
+                                       const product = products.find(p => p.id === item.productId);
+                                       const productName = product ? product.name : 'Premium Lashes';
+                                       return (
+                                         <div key={i} className="bg-accent/10 p-4 rounded border-none space-y-1">
+                                            <div className="flex justify-between items-start">
+                                               <div className="text-[10px] uppercase font-bold tracking-widest text-ink">
+                                                 {productName} × {item.quantity}
+                                               </div>
+                                               <div className="text-[10px] font-bold text-muted">{formatPrice(item.price * item.quantity)}</div>
+                                            </div>
+                                            {(item.selectedStyle || item.selectedColor || item.selectedSize) && (
+                                              <div className="flex flex-wrap gap-x-2.5 text-[8px] uppercase tracking-[0.15em] font-bold text-gold italic">
+                                                {item.selectedStyle && <span>Style: {item.selectedStyle}</span>}
+                                                {item.selectedColor && <span>Color: {item.selectedColor}</span>}
+                                                {item.selectedSize && <span>Size: {item.selectedSize}</span>}
+                                              </div>
+                                            )}
+                                         </div>
+                                       );
+                                     })}
                                   </div>
 
                                   <div className="bg-accent/5 p-4 rounded text-[10px] space-y-2 uppercase font-bold tracking-widest mt-4 border-none">

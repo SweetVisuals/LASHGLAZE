@@ -20,6 +20,7 @@ const stripePromise = loadStripe((import.meta as any).env.VITE_STRIPE_PUBLIC_KEY
 const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatPrice, agreeTerms, agreeData, onShowError, clientSecret }: { total: number, email: string, currency: string, onComplete: (paymentIntentId: string) => void, color: string, formatPrice: (n: number) => string, agreeTerms: boolean, agreeData: boolean, onShowError: (show: boolean) => void, clientSecret: string }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const { storeSettings } = useApp();
   const [error, setError] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
 
@@ -151,6 +152,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
     lastName: '',
     email: '',
     address: '',
+    apt: '',
     city: '',
     postalCode: '',
     country: 'United Kingdom'
@@ -332,7 +334,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
 
   const handleFinalize = () => {
     // Check if info is complete
-    if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.city || !customerInfo.postalCode) {
+    if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.apt || !customerInfo.city || !customerInfo.postalCode) {
       setErrorMessage("Please ensure all shipping and contact details are filled out before proceeding.");
       setIsError(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -375,7 +377,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
           email: customerInfo.email,
           isSubscription: true,
           interval: subscriptionInterval,
-          items: cart.map(item => ({ id: item.id, quantity: item.quantity })),
+          items: cart.map(item => ({ id: item.productId || item.id, quantity: item.quantity })),
           currency: currencyCode,
           successUrl: `${window.location.origin}/checkout/success`,
           cancelUrl: window.location.origin
@@ -406,11 +408,14 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
         customer_email: customerInfo.email,
         total: finalOrderTotal,
         items: cart.map(item => ({
-          product_id: item.id,
+          product_id: item.productId || item.id,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          selected_color: item.selectedColor,
+          selected_size: item.selectedSize,
+          selected_style: item.selectedStyle
         })),
-        shipping_address: customerInfo.address,
+        shipping_address: customerInfo.apt ? `${customerInfo.address}, ${customerInfo.apt}` : customerInfo.address,
         shipping_city: customerInfo.city,
         shipping_postal_code: customerInfo.postalCode,
         shipping_country: customerInfo.country,
@@ -619,27 +624,33 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <input 
                   type="text" 
+                  name="firstName"
+                  autoComplete="given-name"
                   placeholder="First Name *" 
                   required
                   value={customerInfo.firstName}
                   onChange={(e) => setCustomerInfo({...customerInfo, firstName: e.target.value})}
-                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
+                  className="luxe-input px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none" 
                 />
                 <input 
                   type="text" 
+                  name="lastName"
+                  autoComplete="family-name"
                   placeholder="Last Name *" 
                   required
                   value={customerInfo.lastName}
                   onChange={(e) => setCustomerInfo({...customerInfo, lastName: e.target.value})}
-                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
+                  className="luxe-input px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none" 
                 />
                 <input 
                   type="email" 
+                  name="email"
+                  autoComplete="email"
                   placeholder="Email Address *" 
                   required
                   value={customerInfo.email}
                   onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
-                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all md:col-span-2" 
+                  className="luxe-input px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none md:col-span-2" 
                 />
               </div>
             </section>
@@ -652,33 +663,50 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <input 
                    type="text" 
+                   name="address"
+                   autoComplete="street-address"
                    placeholder="Street Address *" 
                    required
                    value={customerInfo.address}
                    onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
-                   className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all md:col-span-2" 
+                   className="luxe-input px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none md:col-span-2" 
                 />
-                <input type="text" placeholder="Apt, Suite, Room (Optional)" className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all md:col-span-2" />
                 <input 
                   type="text" 
+                  name="apt"
+                  autoComplete="address-line2"
+                  placeholder="Apt, Suite, Room *" 
+                  required
+                  value={customerInfo.apt}
+                  onChange={(e) => setCustomerInfo({...customerInfo, apt: e.target.value})}
+                  className="luxe-input px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none md:col-span-2" 
+                />
+                <input 
+                  type="text" 
+                  name="city"
+                  autoComplete="address-level2"
                   placeholder="City *" 
                   required
                   value={customerInfo.city}
                   onChange={(e) => setCustomerInfo({...customerInfo, city: e.target.value})}
-                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
+                  className="luxe-input px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none" 
                 />
                 <input 
                   type="text" 
+                  name="postalCode"
+                  autoComplete="postal-code"
                   placeholder="Postal Code *" 
                   required
                   value={customerInfo.postalCode}
                   onChange={(e) => setCustomerInfo({...customerInfo, postalCode: e.target.value})}
-                  className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
+                  className="luxe-input px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none" 
                 />
                 <select 
+                  name="country"
+                  autoComplete="country-name"
                   value={customerInfo.country}
                   onChange={(e) => setCustomerInfo({...customerInfo, country: e.target.value})}
-                  className="bg-accent/10 text-ink px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all appearance-none"
+                  className="luxe-input px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none appearance-none cursor-pointer"
                 >
                   <option value="United Kingdom">United Kingdom</option>
                   <option value="United States">United States</option>
@@ -729,7 +757,11 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                    <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Replenishment Profile</h2>
                 </div>
                 <div className="space-y-4">
-                   <div className={`transition-all rounded-none shadow-sm ${isSubscription ? 'bg-accent/10 shadow-xl' : 'bg-accent/5'}`}>
+                   <div className={`subscription-card transition-all duration-500 rounded-none ${
+                     isSubscription 
+                       ? 'subscription-card-active text-paper shadow-2xl' 
+                       : 'subscription-card-normal text-ink shadow-sm'
+                   }`}>
                       <button 
                         onClick={() => {
                           if (!existingActiveSubscription) {
@@ -737,20 +769,28 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                           }
                         }}
                         disabled={!!existingActiveSubscription}
-                        className={`w-full flex justify-between items-center px-4 md:px-8 py-6 transition-all rounded-none ${
-                          isSubscription ? 'bg-ink text-paper shadow-xl' : 'hover:bg-accent/10'
+                        className={`w-full flex justify-between items-center px-4 md:px-8 py-6 transition-all rounded-none bg-transparent ${
+                          isSubscription ? 'text-paper' : 'text-ink hover:bg-gold/5'
                         } ${existingActiveSubscription ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
                          <div className="flex items-center gap-4">
-                            <div className={`w-4 h-4 rounded-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.1)] ${isSubscription ? 'bg-paper shadow-none' : 'bg-paper/50'} flex items-center justify-center`}>
-                              {isSubscription && <div className="w-2 h-2 bg-ink rounded-full" />}
-                              {existingActiveSubscription && <Check size={10} className="text-emerald-500" />}
+                            <div 
+                              className="w-5 h-5 rounded-full flex items-center justify-center transition-all duration-300"
+                              style={{
+                                boxShadow: isSubscription 
+                                  ? 'none' 
+                                  : 'inset 0 0 0 1.5px var(--gold)',
+                                backgroundColor: isSubscription ? 'var(--gold)' : 'transparent'
+                              }}
+                            >
+                              {isSubscription && <div className="w-2 h-2 bg-paper rounded-full" />}
+                              {existingActiveSubscription && <Check size={10} className="text-paper" />}
                             </div>
                             <div className="text-left">
-                              <span className="text-[10px] uppercase tracking-[0.2em] font-bold block">
+                              <span className={`text-[10px] uppercase tracking-[0.2em] font-bold block ${isSubscription ? 'text-paper' : 'text-ink'}`}>
                                 {existingActiveSubscription ? 'Active Subscription Secured' : 'Subscribe & Save'}
                               </span>
-                              <span className="text-[8px] uppercase tracking-widest opacity-50 block mt-1">
+                              <span className={`text-[8px] uppercase tracking-widest block mt-1 ${isSubscription ? 'text-paper/60' : 'text-muted'}`}>
                                 {existingActiveSubscription 
                                   ? `Already enrolled in ${existingActiveSubscription.interval} replenishment`
                                   : 'Automated order delivered to your profile'}
@@ -758,7 +798,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                             </div>
                          </div>
                          <div className="text-right">
-                            <span className={`text-[10px] font-mono font-bold italic ${isSubscription ? 'text-paper' : 'text-gold'}`}>
+                            <span className="text-[10px] font-mono font-bold italic text-gold">
                               {existingActiveSubscription ? 'Priority Status Active' : 'Up to 15% Savings'}
                             </span>
                          </div>
@@ -776,23 +816,31 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                                <div className="grid grid-cols-2 gap-6">
                                   <button 
                                     onClick={() => setSubscriptionInterval('fortnightly')}
-                                    className={`flex flex-col p-6 text-left transition-all rounded-none shadow-sm ${subscriptionInterval === 'fortnightly' ? 'bg-paper text-ink shadow-md' : 'bg-transparent opacity-60 hover:opacity-100'}`}
+                                    className={`flex flex-col p-6 text-left transition-all rounded-none ${
+                                      subscriptionInterval === 'fortnightly' 
+                                        ? 'bg-gold text-paper shadow-[0_8px_20px_rgba(212,175,55,0.35)] font-bold' 
+                                        : 'bg-paper/10 text-paper/70 hover:bg-paper/20 hover:text-paper shadow-sm'
+                                    }`}
                                   >
                                      <span className="text-[10px] uppercase tracking-tighter font-bold mb-2">Every 2 Weeks</span>
-                                     <span className="text-xs font-mono font-bold">15% Discount</span>
-                                     <span className="text-[8px] uppercase tracking-widest opacity-40 mt-2 italic">Priority Processing</span>
+                                     <span className="text-sm font-mono font-bold">15% Discount</span>
+                                     <span className="text-[8px] uppercase tracking-widest opacity-60 mt-2 italic">Priority Processing</span>
                                   </button>
                                   <button 
                                     onClick={() => setSubscriptionInterval('monthly')}
-                                    className={`flex flex-col p-6 text-left transition-all rounded-none shadow-sm ${subscriptionInterval === 'monthly' ? 'bg-paper text-ink shadow-md' : 'bg-transparent opacity-60 hover:opacity-100'}`}
+                                    className={`flex flex-col p-6 text-left transition-all rounded-none ${
+                                      subscriptionInterval === 'monthly' 
+                                        ? 'bg-gold text-paper shadow-[0_8px_20px_rgba(212,175,55,0.35)] font-bold' 
+                                        : 'bg-paper/10 text-paper/70 hover:bg-paper/20 hover:text-paper shadow-sm'
+                                    }`}
                                   >
                                      <span className="text-[10px] uppercase tracking-tighter font-bold mb-2">Every 4 Weeks</span>
-                                     <span className="text-xs font-mono font-bold">10% Discount</span>
-                                     <span className="text-[8px] uppercase tracking-widest opacity-40 mt-2 italic">Standard Processing</span>
+                                     <span className="text-sm font-mono font-bold">10% Discount</span>
+                                     <span className="text-[8px] uppercase tracking-widest opacity-60 mt-2 italic">Standard Processing</span>
                                   </button>
-                               </div>
-                               <p className="text-[9px] text-muted italic serif max-w-md">
-                                  Subscription members receive exclusive priority access to future drops and limited editions. Cancel or modify your cycle at any time via your customer profile.
+                                </div>
+                                <p className={`text-[9px] italic serif max-w-md ${isSubscription ? 'text-paper/50' : 'text-muted'}`}>
+                                   Subscription members receive exclusive priority access to future drops and limited editions. Cancel or modify your cycle at any time via your customer profile.
                                 </p>
                              </div>
                           </motion.div>
@@ -813,14 +861,13 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
 
             <section 
               id="requirement-agreements" 
-              className="space-y-8 p-8 shadow-inner transition-colors duration-500 border-none relative overflow-hidden"
-              style={{ 
-                backgroundColor: showError 
-                  ? 'color-mix(in srgb, var(--limitedTime) 12%, transparent)' 
+              className={`requirements-card space-y-8 p-8 border-none relative overflow-hidden ${
+                showError 
+                  ? 'requirements-card-error' 
                   : (agreeTerms && agreeData) 
-                    ? 'rgba(var(--accent-rgb), 0.05)' 
-                    : 'color-mix(in srgb, var(--limitedTime) 6%, transparent)' 
-              }}
+                    ? 'requirements-card-success' 
+                    : 'requirements-card-normal'
+              }`}
             >
                <div className="flex items-center gap-4 mb-2 flex-wrap">
                   <Lock 
@@ -831,7 +878,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                         ? 'var(--limitedTime)' 
                         : (agreeTerms && agreeData) 
                           ? 'var(--muted)' 
-                          : 'var(--limitedTime)' 
+                          : 'var(--gold)' 
                     }} 
                   />
                   <h3 
@@ -841,7 +888,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                         ? 'var(--limitedTime)' 
                         : (agreeTerms && agreeData) 
                           ? 'var(--ink)' 
-                          : 'var(--limitedTime)' 
+                          : 'var(--gold)' 
                     }}
                   >
                     Requirement Agreements
@@ -850,18 +897,25 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                     <span 
                       className="text-[8px] uppercase tracking-[0.2em] font-bold animate-pulse px-2 py-0.5 border-none"
                       style={{ 
-                        backgroundColor: 'var(--limitedTime)',
+                        backgroundColor: showError ? 'var(--limitedTime)' : 'var(--gold)',
                         color: 'var(--paper)'
                       }}
                     >
-                      Required
+                      {showError ? 'Action Required' : 'Required'}
+                    </span>
+                  )}
+                  {(agreeTerms && agreeData) && (
+                    <span 
+                      className="text-[8px] uppercase tracking-[0.2em] font-bold px-2 py-0.5 border-none bg-emerald-700 text-paper flex items-center gap-1 shadow-[0_2px_8px_rgba(4,120,87,0.2)]"
+                    >
+                      <Check size={8} strokeWidth={4} /> Secured
                     </span>
                   )}
                </div>
                
                <div className="space-y-8">
                   <label className="flex items-start gap-5 cursor-pointer group">
-                    <div className="luxe-checkbox mt-1">
+                    <div className={`luxe-checkbox mt-1 ${showError && !agreeTerms ? 'luxe-checkbox-error' : ''}`}>
                       <input 
                         type="checkbox" 
                         checked={agreeTerms}
@@ -880,7 +934,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                   </label>
                   
                   <label className="flex items-start gap-5 cursor-pointer group">
-                    <div className="luxe-checkbox mt-1">
+                    <div className={`luxe-checkbox mt-1 ${showError && !agreeData ? 'luxe-checkbox-error' : ''}`}>
                       <input 
                         type="checkbox" 
                         checked={agreeData}
@@ -1048,7 +1102,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                                 <div className="pt-8 space-y-6">
                                   <button 
                                     onClick={() => {
-                                      if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.city || !customerInfo.postalCode) {
+                                      if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.apt || !customerInfo.city || !customerInfo.postalCode) {
                                         setErrorMessage("Please ensure all shipping and contact details are filled out before proceeding.");
                                         setIsError(true);
                                         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1153,7 +1207,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                                 <div className="pt-8 space-y-6">
                                   <button 
                                     onClick={async () => {
-                                      if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.city || !customerInfo.postalCode) {
+                                      if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.apt || !customerInfo.city || !customerInfo.postalCode) {
                                         setErrorMessage("Please ensure all shipping and contact details are filled out before proceeding.");
                                         setIsError(true);
                                         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1294,7 +1348,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                                  <p className="text-[9px] text-muted max-w-xs leading-relaxed uppercase font-bold tracking-[0.3em]">
                                     {total <= 0 
                                       ? "Order Total must be greater than zero to initialize gateway"
-                                      : (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.city || !customerInfo.postalCode)
+                                      : (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.apt || !customerInfo.city || !customerInfo.postalCode)
                                         ? "Please provide your full shipping and contact information above to unlock secure payment methods."
                                         : "Waiting for secure connection to Stripe..."}
                                  </p>
@@ -1340,7 +1394,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                        placeholder="PROMO CODE" 
                        value={promoCode}
                        onChange={e => setPromoCode(e.target.value.toUpperCase())}
-                       className="bg-paper flex-grow px-4 py-3 text-[10px] font-bold tracking-widest outline-none border-b border-accent/10 focus:border-gold transition-colors"
+                       className="luxe-input flex-grow px-4 py-3 text-[10px] font-bold tracking-widest focus:outline-none"
                     />
                     <button onClick={handleApplyPromo} className="px-6 bg-ink text-paper text-[9px] font-bold uppercase tracking-widest hover:bg-gold transition-all">Apply</button>
                  </div>
@@ -1372,6 +1426,13 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                             <span className="text-gold">Pre-order Edition</span>
                           ) : 'Glaze Series Profile'}
                         </p>
+                        {(item.selectedStyle || item.selectedColor || item.selectedSize) && (
+                          <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-[8px] uppercase tracking-[0.15em] font-bold text-accent/80 italic">
+                            {item.selectedStyle && <span>Style: {item.selectedStyle}</span>}
+                            {item.selectedColor && <span>Color: {item.selectedColor}</span>}
+                            {item.selectedSize && <span>Size: {item.selectedSize}</span>}
+                          </div>
+                        )}
                       </div>
                       <div className="flex justify-between items-end">
                         <div className="flex items-center gap-6 text-[11px] font-bold uppercase tracking-widest px-4 py-2 bg-paper shadow-[0_5px_15px_rgba(0,0,0,0.05)]">

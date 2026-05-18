@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import Stripe from "https://esm.sh/stripe@11.1.0?target=deno"
+import Stripe from "https://esm.sh/stripe@14.22.0?target=deno"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +11,7 @@ serve(async (req) => {
 
   try {
     const stripe = new Stripe(Deno.env.get('STRIPE_SECRET_KEY') ?? '', {
-      apiVersion: '2025-01-27.acacia',
+      apiVersion: '2023-10-16',
     })
 
     const { amount, currency, email, isSubscription, interval, successUrl, cancelUrl } = await req.json()
@@ -45,9 +45,7 @@ serve(async (req) => {
         amount: Math.round(amount * 100), // Stripe expects cents
         currency: currency,
         receipt_email: email,
-        automatic_payment_methods: {
-          enabled: true,
-        },
+        payment_method_types: ['card'],
       })
 
       return new Response(JSON.stringify({ clientSecret: paymentIntent.client_secret }), {
