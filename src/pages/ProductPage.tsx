@@ -17,7 +17,7 @@ interface ProductPageProps {
 
 export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onCheckout }) => {
   const { products, addToCart, dropExpiry, isDropActive, formatPrice, storeSettings } = useApp();
-  const product = products.find(p => p.id === productId);
+  const product = products.find(p => p.id === productId || p.slug === productId);
   const [quantity, setQuantity] = useState(1);
   const [selectedLength, setSelectedLength] = useState('9-16mm');
   const [activeImage, setActiveImage] = useState(0);
@@ -64,7 +64,6 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
           {/* VISUALS: Simple Stack or Gallery */}
           <div className="space-y-8">
             <motion.div 
-              layoutId={`product-image-${product.id}`}
               className="aspect-square bg-accent/5 overflow-hidden rounded-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]"
             >
               <img 
@@ -121,7 +120,10 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
                        </span>
                     )}
                     {isLimitedTimeActive && (
-                       <span className="lg:ml-4 mt-2 lg:mt-0 bg-red-500 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg animate-pulse w-fit">
+                       <span 
+                         className="lg:ml-4 mt-2 lg:mt-0 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg animate-pulse w-fit border-none"
+                         style={{ backgroundColor: storeSettings.colors.limitedTime }}
+                       >
                          Limited Time
                        </span>
                     )}
@@ -147,15 +149,21 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
 
              {/* Integrated Multi-Mode Timer Box */}
              <div 
-               className="p-6 space-y-4 rounded-none shadow-inner transition-colors duration-500"
+               className="p-6 space-y-4 rounded-none shadow-none transition-colors duration-500 border-none"
                style={{ 
                  backgroundColor: isPreOrderActive 
-                   ? storeSettings.colors.preOrder 
-                   : (isLimitedTimeActive ? storeSettings.colors.limitedTime : 'rgba(var(--accent-rgb), 0.05)')
+                   ? 'color-mix(in srgb, var(--preOrder) 10%, transparent)' 
+                   : (isLimitedTimeActive ? 'color-mix(in srgb, var(--limitedTime) 8%, transparent)' : 'rgba(var(--accent-rgb), 0.05)')
                }}
              >
                 <div className="flex justify-between items-center text-[9px] font-bold uppercase tracking-[0.3em]">
-                   <span className={activeTimerTarget ? (isPreOrderActive || isLimitedTimeActive ? 'text-white' : 'text-ink') : 'text-red-500'}>
+                   <span 
+                     style={{ 
+                       color: isPreOrderActive 
+                         ? 'var(--preOrder)' 
+                         : (isLimitedTimeActive ? 'var(--limitedTime)' : 'var(--ink)')
+                     }}
+                   >
                      {timerLabel}
                    </span>
                    {activeTimerTarget ? (

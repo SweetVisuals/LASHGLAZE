@@ -6,12 +6,18 @@
 import { Product, Order, Customer, PaymentMethod, ShippingMethod, StoreSettings } from './types';
 
 export const INITIAL_SETTINGS: StoreSettings = {
-  name: "Lash Glaze Strip Lashes",
+  name: "LashGlaze",
   currency: "£",
   logo: "",
   heroBannerUrl: "https://t4.ftcdn.net/jpg/03/28/63/89/360_F_328638911_YLn1tIOK7etBCV7RbtDEU19ftzlS1hUQ.jpg",
   instagramUrl: "https://instagram.com/lashglaze",
   tiktokUrl: "https://tiktok.com/@lashglaze",
+  subscriptionsEnabled: true,
+  paypalEmail: "concierge@lashglaze.com",
+  paypalMeLink: "https://paypal.me/lashglaze",
+  passwordLockEnabled: false,
+  passwordLockPassword: "",
+  passwordLockExpiresAt: "",
   colors: {
     ink: "#1A1A1A",
     paper: "#FDFCFB",
@@ -19,7 +25,7 @@ export const INITIAL_SETTINGS: StoreSettings = {
     muted: "#9A9187",
     gold: "#D4AF37",
     preOrder: "#CC5500",
-    limitedTime: "#800020",
+    limitedTime: "#A63A2B",
     topbarBg: "#FDFCFB",
     topbarText: "#1A1A1A",
     buttonBg: "#1A1A1A",
@@ -38,6 +44,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     category: 'Lashes',
     inventory: 50,
     status: 'active',
+    slug: 'eyelash-package',
   }
 ];
 

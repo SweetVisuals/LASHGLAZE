@@ -209,7 +209,7 @@ export default function Profile({ onBack, onOrderClick }: ProfileProps) {
                 </div>
                 <div>
                    <div className="flex items-center gap-4">
-                    <h1 className="font-serif text-5xl md:text-6xl italic tracking-tighter">The Atelier</h1>
+                    <h1 className="font-serif text-5xl md:text-6xl italic tracking-tighter">Your Profile</h1>
                     {subscriptions.some(s => s.status === 'active') && (
                       <motion.div 
                         initial={{ opacity: 0, scale: 0.8 }}
@@ -288,7 +288,7 @@ export default function Profile({ onBack, onOrderClick }: ProfileProps) {
                  <div className="p-10 rounded-none shadow-2xl space-y-6" style={{ backgroundColor: 'var(--preOrder)', color: 'var(--paper)' }}>
                     <h4 className="text-[9px] uppercase tracking-[0.3em] font-bold opacity-40">Elite Subscription Status</h4>
                     <p className="text-[10px] font-bold tracking-widest leading-relaxed uppercase opacity-80">
-                       You have achieved premier atelier status through your active replenishment cycle. Luxury styling consultations are now complimentary.
+                       You have achieved premier status through your active replenishment cycle. Luxury styling consultations are now complimentary.
                     </p>
                     <button className="text-[9px] font-bold uppercase tracking-[0.3em] text-paper flex items-center gap-2 group border-b border-paper/20 pb-1">
                        Summon Specialist <ChevronRight size={12} className="transition-transform group-hover:translate-x-1" />

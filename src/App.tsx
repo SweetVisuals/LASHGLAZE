@@ -15,6 +15,7 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { CookieBanner } from './components/CookieBanner';
 import { StaticPage } from './pages/StaticPage';
+import { ScrollToTop } from './components/ScrollToTop';
 
 import Profile from './pages/Profile';
 
@@ -63,6 +64,7 @@ function AppContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-paper text-ink">
+      <ScrollToTop />
       <Header 
         onNavigate={() => navigate('/')} 
         onAdminClick={() => navigate('/admin')}
@@ -150,7 +152,7 @@ function AppContent() {
                    </div>
                    <div>
                      <p className="font-sans text-[10px] uppercase font-black tracking-widest text-gold mb-2">Order Tracking</p>
-                     <p>How do I track my order? Once your order is processed, you will receive a tracking code via email. You can also monitor your order's journey directly within your 'Atelier' profile or on our dedicated tracking page.</p>
+                     <p>How do I track my order? Once your order is processed, you will receive a tracking code via email. You can also monitor your order's journey directly within your profile or on our dedicated tracking page.</p>
                    </div>
                  </div>
                } 

@@ -15,7 +15,7 @@ interface StoreProps {
 }
 
 export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
-  const { products, formatPrice, storeSettings } = useApp();
+  const { products, formatPrice, storeSettings, showcaseReviews } = useApp();
   const [filterType, setFilterType] = useState('All');
 
   return (
@@ -52,7 +52,7 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
             transition={{ duration: 1.2 }}
             className="font-serif text-6xl md:text-8xl text-white mb-10 tracking-tight italic"
           >
-            The Muse Collection
+            {storeSettings.heroHeading || 'The Muse Collection'}
           </motion.h1>
           <motion.p 
             initial={{ opacity: 0 }}
@@ -60,7 +60,7 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
             transition={{ delay: 0.5, duration: 1 }}
             className="text-xs md:text-sm text-white/80 mb-12 tracking-[0.4em] uppercase font-bold"
           >
-            Crafted for the modern gaze.
+            {storeSettings.heroSubheading || 'Crafted for the modern gaze.'}
           </motion.p>
           <motion.div 
             initial={{ opacity: 0, scale: 0.95 }}
@@ -94,6 +94,46 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
           </motion.div>
         </div>
       </section>
+
+      {/* Review Gallery Showcase */}
+      {showcaseReviews && showcaseReviews.length > 0 && (
+        <section className="w-full py-24 bg-paper relative overflow-hidden">
+          <div className="max-w-7xl mx-auto px-4 md:px-8">
+             <div className="flex flex-col items-center mb-16 text-center">
+               <h2 className="font-serif text-4xl md:text-5xl text-ink italic mb-4 tracking-tight">Customer Showcase</h2>
+               <p className="text-[10px] text-muted uppercase tracking-[0.5em] font-bold opacity-80">Customer Reviews</p>
+             </div>
+             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
+               {showcaseReviews.map((review, idx) => (
+                 <motion.div 
+                   key={review.id}
+                   initial={{ opacity: 0, y: 30 }}
+                   whileInView={{ opacity: 1, y: 0 }}
+                   transition={{ delay: idx * 0.15, duration: 0.8 }}
+                   viewport={{ once: true }}
+                   className="group relative aspect-[3/4] overflow-hidden bg-accent/10"
+                 >
+                    <img 
+                      src={review.image_url} 
+                      alt={`Showcase by ${review.username}`} 
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-6">
+                       <p className="text-white text-[11px] font-bold uppercase tracking-widest mb-2">{review.username}</p>
+                       <p className="text-white/80 text-[10px] italic font-serif leading-relaxed line-clamp-3">"{review.review_text}"</p>
+                       <div className="flex gap-1 mt-3">
+                         {[...Array(review.rating || 5)].map((_, i) => (
+                           <span key={i} className="text-gold text-[8px]">★</span>
+                         ))}
+                       </div>
+                    </div>
+                 </motion.div>
+               ))}
+             </div>
+          </div>
+        </section>
+      )}
 
       {/* Trust Badges - Minimal Editorial Style */}
       <section className="max-w-5xl mx-auto px-8 md:px-16 py-24">
@@ -134,9 +174,9 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
               transition={{ delay: idx * 0.1 }}
               viewport={{ once: true }}
               className="group cursor-pointer w-full max-w-xl"
-              onClick={() => onProductClick(product.id)}
+              onClick={() => onProductClick(product.slug || product.id)}
             >
-              <div className="relative aspect-video overflow-hidden bg-accent/20 mb-6 p-2 rounded-none">
+              <div className="relative aspect-square overflow-hidden bg-accent/20 mb-6 p-2 rounded-none">
                 <div className="w-full h-full overflow-hidden bg-white rounded-none relative">
                    {(() => {
                      const now = new Date();
@@ -153,7 +193,10 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
                         </div>
                      );
                      if (isLimited) return (
-                        <div className="absolute top-4 left-4 z-10 bg-red-500 text-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] shadow-lg animate-pulse">
+                        <div 
+                          className="absolute top-4 left-4 z-10 text-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] shadow-lg animate-pulse border-none"
+                          style={{ backgroundColor: storeSettings.colors.limitedTime }}
+                        >
                           Limited Time
                         </div>
                      );

@@ -18,7 +18,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCartClick, onTrackClick, onProfileClick }) => {
-  const { cart, isCustomerLoggedIn, loginCustomer, logoutCustomer, storeSettings, updateStoreSettings, user, isAdmin } = useApp();
+  const { cart, isCustomerLoggedIn, loginCustomer, logoutCustomer, storeSettings, updateStoreSettings, user, isAdmin, profile } = useApp();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isCurrencyMenuOpen, setIsCurrencyMenuOpen] = useState(false);
@@ -61,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
           onClick={onNavigate}
           className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center group"
         >
-          <span className="font-serif text-lg lg:text-2xl tracking-tight italic font-bold uppercase tracking-widest text-topbarText leading-none">Lash Glaze</span>
+          <span className="font-serif text-lg lg:text-2xl tracking-tight italic font-bold uppercase tracking-widest text-topbarText leading-none">{storeSettings.name || 'LashGlaze'}</span>
           <span className="text-[6px] lg:text-[8px] tracking-[0.4em] font-bold mt-1 opacity-50 uppercase leading-none text-topbarText">Strip Lashes</span>
         </button>
 
@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
                    initial={{ opacity: 0, y: 10 }}
                    animate={{ opacity: 1, y: 0 }}
                    exit={{ opacity: 0, y: 10 }}
-                   className="absolute right-0 top-full mt-4 w-48 bg-topbarBg/95 backdrop-blur-3xl shadow-[0_30px_100px_rgba(0,0,0,0.5)] z-[120] flex flex-col font-sans rounded-none overflow-hidden"
+                   className="absolute right-0 top-full mt-4 w-48 bg-topbarBg shadow-[0_30px_100px_rgba(0,0,0,0.5)] z-[120] flex flex-col font-sans rounded-none overflow-hidden"
                 >
                   {currencies.map((c) => (
                     <button 
@@ -130,9 +130,9 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
                   initial={{ opacity: 0, scale: 0.95, y: 10 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                  className="absolute right-0 top-full mt-4 w-72 bg-topbarBg/95 backdrop-blur-3xl shadow-[0_50px_100px_rgba(0,0,0,0.5)] z-[2100] flex flex-col font-sans rounded-none overflow-hidden"
+                  className="absolute right-0 top-full mt-4 w-72 bg-topbarBg shadow-[0_50px_100px_rgba(0,0,0,0.5)] z-[2100] flex flex-col font-sans rounded-none overflow-hidden"
                 >
-                    <div className="p-8 border-b border-topbarText/5 bg-topbarText/5">
+                    <div className="p-8 bg-topbarText/5">
                       <p className="text-[10px] text-topbarText opacity-40 uppercase tracking-[0.4em] font-extrabold mb-1">
                         Active Identity
                       </p>
@@ -158,7 +158,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
                         </button>
                       )}
                     </div>
-                    <div className="mt-auto border-t border-red-500/10 p-2">
+                    <div className="mt-auto p-2">
                       <button onClick={logoutCustomer} className="w-full px-5 py-5 text-[11px] uppercase tracking-[0.4em] hover:bg-red-500/10 text-center font-black text-red-500/70 hover:text-red-500 transition-all">
                         Log Out
                       </button>
@@ -176,7 +176,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
           >
             <ShoppingBag size={20} />
             {cartCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 bg-gold text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-none shadow-md">
+              <span className="absolute -top-1.5 -right-1.5 bg-gold text-topbarBg text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-none shadow-md">
                 {cartCount}
               </span>
             )}
@@ -194,7 +194,7 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
           >
             <div className="flex justify-between items-center mb-10">
                <div className="flex flex-col">
-                  <span className="font-serif text-lg text-topbarText italic font-bold uppercase tracking-widest leading-none">Lash Glaze</span>
+                  <span className="font-serif text-lg text-topbarText italic font-bold uppercase tracking-widest leading-none">{storeSettings.name || 'LashGlaze'}</span>
                   <span className="text-[7px] tracking-[0.4em] font-bold opacity-40 uppercase leading-none mt-1 text-topbarText">Strip Lashes</span>
                </div>
                <button className="text-topbarText p-2 -mr-2 bg-topbarText/5 rounded-none" onClick={() => setIsMenuOpen(false)}><X size={20} /></button>

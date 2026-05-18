@@ -25,6 +25,7 @@ export interface Product {
   preOrderPrice?: number;
   limitedTimeEnabled?: boolean;
   limitedTimeEndsAt?: string;
+  slug?: string;
 }
 
 export interface Order {
@@ -45,6 +46,9 @@ export interface Order {
   stripePaymentIntentId?: string;
   paypalOrderId?: string;
   paymentMethodId?: string;
+  paypalEmail?: string;
+  customerEmailSent?: boolean;
+  ownerEmailSent?: boolean;
 }
 
 export interface Customer {
@@ -59,7 +63,7 @@ export interface PaymentMethod {
   id: string;
   name: string;
   enabled: boolean;
-  type: 'card' | 'paypal' | 'klarna' | 'test';
+  type: 'card' | 'paypal' | 'klarna' | 'test' | 'crypto';
 }
 
 export interface ShippingMethod {
@@ -80,8 +84,25 @@ export interface StoreSettings {
   currency: string;
   logo: string;
   heroBannerUrl: string;
+  heroHeading?: string;
+  heroSubheading?: string;
   instagramUrl?: string;
   tiktokUrl?: string;
+  subscriptionsEnabled: boolean;
+  paypalEmail?: string;
+  paypalMeLink?: string;
+  cryptoUsdcAddress?: string;
+  passwordLockEnabled: boolean;
+  passwordLockPassword?: string;
+  passwordLockExpiresAt?: string;
+  supportEmail?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPass?: string;
+  emailFromCustomer?: string;
+  emailFromOwner?: string;
+  emailToOwner?: string;
   colors: {
     ink: string;
     paper: string;
@@ -145,3 +166,13 @@ export interface Subscription {
   stripe_subscription_id?: string;
   stripe_customer_id?: string;
 }
+
+export interface ShowcaseReview {
+  id: string;
+  image_url: string;
+  username: string;
+  review_text?: string;
+  rating: number;
+  created_at?: string;
+}
+

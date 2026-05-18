@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,700;1,400&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -14,7 +14,7 @@
 }
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
   --font-serif: "Playfair Display", serif;
   
   --color-ink: var(--ink);
@@ -100,4 +100,16 @@
   .luxe-checkbox:hover {
     @apply bg-accent/30 shadow-lg;
   }
+}
+
+/* Rule: no front end borders */
+*, *::before, *::after {
+  border-width: 0px !important;
+  border-style: none !important;
+}
+
+/* Ensure focus and active states remain accessible via outlines */
+input:focus, select:focus, textarea:focus, button:focus-visible {
+  outline: 2px solid var(--gold) !important;
+  outline-offset: 1px;
 }

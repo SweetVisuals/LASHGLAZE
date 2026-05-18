@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, Order, Customer, PaymentMethod, StoreSettings, ShippingRegion, TaxRule, Coupon, Policy } from '../types';
+import { Product, Order, Customer, PaymentMethod, StoreSettings, ShippingRegion, TaxRule, Coupon, Policy, Category, ShowcaseReview } from '../types';
 import { INITIAL_PRODUCTS, INITIAL_SETTINGS } from '../data';
 
 import { supabase } from '../supabase';
@@ -25,6 +25,7 @@ interface AppContextType {
   categories: Category[];
   coupons: Coupon[];
   policies: Policy[];
+  showcaseReviews: ShowcaseReview[];
   cart: CartItem[];
   
   setProducts: (products: Product[]) => void;
@@ -34,6 +35,9 @@ interface AppContextType {
   setTaxRules: (rules: TaxRule[]) => void;
   setCoupons: (coupons: Coupon[]) => void;
   setPolicies: (policies: Policy[]) => void;
+  setShowcaseReviews: (reviews: ShowcaseReview[]) => void;
+  saveShowcaseReview: (review: ShowcaseReview) => Promise<void>;
+  deleteShowcaseReview: (id: string) => Promise<void>;
   setStoreSettings: (settings: StoreSettings) => void;
   addToCart: (product: Product, quantity?: number) => void;
   removeFromCart: (productId: string) => void;
@@ -70,6 +74,7 @@ interface AppContextType {
     shipping_city?: string;
     shipping_postal_code?: string;
     shipping_country?: string;
+    paypal_email?: string;
   }) => Promise<any | null>;
   updateOrder: (orderId: string, updates: Partial<Order>) => Promise<boolean>;
   deleteOrder: (orderId: string) => Promise<boolean>;
@@ -99,6 +104,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [categories, setCategories] = useState<Category[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [showcaseReviews, setShowcaseReviews] = useState<ShowcaseReview[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCustomerLoggedIn, setIsCustomerLoggedIn] = useState(false);
@@ -196,12 +202,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         
         if (settingsData) {
           setStoreSettings({
-            name: settingsData.name,
-            currency: settingsData.currency || '£',
-            logo: settingsData.logo || '',
+            name: settingsData.name || INITIAL_SETTINGS.name,
+            currency: settingsData.currency || INITIAL_SETTINGS.currency,
+            logo: settingsData.logo || INITIAL_SETTINGS.logo,
             heroBannerUrl: settingsData.hero_banner_url || INITIAL_SETTINGS.heroBannerUrl,
+            heroHeading: settingsData.hero_heading,
+            heroSubheading: settingsData.hero_subheading,
             instagramUrl: settingsData.instagram_url || INITIAL_SETTINGS.instagramUrl,
             tiktokUrl: settingsData.tiktok_url || INITIAL_SETTINGS.tiktokUrl,
+            paypalEmail: settingsData.paypal_email,
+            paypalMeLink: settingsData.paypal_me_link,
+            subscriptionsEnabled: settingsData.subscriptions_enabled ?? true,
+            passwordLockEnabled: settingsData.password_lock_enabled ?? false,
+            passwordLockPassword: settingsData.password_lock_password || '',
+            passwordLockExpiresAt: settingsData.password_lock_expires_at || '',
+            supportEmail: settingsData.support_email || '',
+            smtpHost: settingsData.smtp_host || '',
+            smtpPort: settingsData.smtp_port || 587,
+            smtpUser: settingsData.smtp_user || '',
+            smtpPass: settingsData.smtp_pass || '',
+            emailFromCustomer: settingsData.email_from_customer || '',
+            emailFromOwner: settingsData.email_from_owner || '',
+            emailToOwner: settingsData.email_to_owner || '',
             colors: (settingsData.colors as any) || INITIAL_SETTINGS.colors
           });
         }
@@ -294,13 +316,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           })));
         }
 
+        // Fetch Showcase Reviews
+        const { data: reviewsData } = await supabase
+          .from('showcase_reviews')
+          .select('*')
+          .order('created_at', { ascending: false });
+        
+        if (reviewsData) {
+          setShowcaseReviews(reviewsData.map(r => ({
+             id: r.id,
+             image_url: r.image_url,
+             username: r.username,
+             review_text: r.review_text,
+             rating: r.rating,
+             created_at: r.created_at
+          })));
+        }
+
         // Fetch Payment Methods
         const { data: paymentData } = await supabase
           .from('payment_methods')
           .select('*');
           
         if (paymentData) {
-          setPaymentMethods(paymentData as any);
+          let methods = paymentData as any;
+          if (!methods.find((m: any) => m.type === 'crypto')) {
+             methods.push({ id: 'crypto-payment', name: 'Cryptocurrency (USDC)', type: 'crypto', enabled: true });
+          }
+          setPaymentMethods(methods);
         }
 
         // Fetch Categories
@@ -343,7 +386,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             .from('orders')
             .select(`
               id, profile_id, customer_name, customer_email, total, status, created_at, order_number,
-              stripe_payment_intent_id, paypal_order_id, payment_method_id,
+              stripe_payment_intent_id, paypal_order_id, payment_method_id, paypal_email,
               order_items ( product_id, quantity, price )
             `)
             .order('created_at', { ascending: false });
@@ -362,6 +405,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               stripePaymentIntentId: o.stripe_payment_intent_id,
               paypalOrderId: o.paypal_order_id,
               paymentMethodId: o.payment_method_id,
+              paypalEmail: o.paypal_email,
               shippingAddress: o.shipping_address,
               shippingCity: o.shipping_city,
               shippingPostalCode: o.shipping_postal_code,
@@ -395,7 +439,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             .from('orders')
             .select(`
               id, profile_id, customer_name, customer_email, total, status, created_at, order_number,
-              stripe_payment_intent_id, paypal_order_id, payment_method_id,
+              stripe_payment_intent_id, paypal_order_id, payment_method_id, paypal_email,
               shipping_address, shipping_city, shipping_postal_code, shipping_country, tracking_number,
               order_items ( product_id, quantity, price )
             `)
@@ -415,6 +459,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               stripePaymentIntentId: o.stripe_payment_intent_id,
               paypalOrderId: o.paypal_order_id,
               paymentMethodId: o.payment_method_id,
+              paypalEmail: o.paypal_email,
               shippingAddress: o.shipping_address,
               shippingCity: o.shipping_city,
               shippingPostalCode: o.shipping_postal_code,
@@ -558,8 +603,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           currency: newSettings.currency,
           logo: newSettings.logo,
           hero_banner_url: newSettings.heroBannerUrl,
+          hero_heading: newSettings.heroHeading,
+          hero_subheading: newSettings.heroSubheading,
           instagram_url: newSettings.instagramUrl,
           tiktok_url: newSettings.tiktokUrl,
+          paypal_email: newSettings.paypalEmail,
+          paypal_me_link: newSettings.paypalMeLink,
+          subscriptions_enabled: newSettings.subscriptionsEnabled,
+          password_lock_enabled: newSettings.passwordLockEnabled,
+          password_lock_password: newSettings.passwordLockPassword,
+          password_lock_expires_at: newSettings.passwordLockExpiresAt,
+          support_email: newSettings.supportEmail,
+          smtp_host: newSettings.smtpHost,
+          smtp_port: newSettings.smtpPort,
+          smtp_user: newSettings.smtpUser,
+          smtp_pass: newSettings.smtpPass,
+          email_from_customer: newSettings.emailFromCustomer,
+          email_from_owner: newSettings.emailFromOwner,
+          email_to_owner: newSettings.emailToOwner,
           colors: newSettings.colors as any
         })
         .eq('id', 1);
@@ -578,10 +639,84 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         .from('payment_methods')
         .update({ enabled })
         .eq('id', id);
+
       if (error) throw error;
-      setPaymentMethods(prev => prev.map(p => p.id === id ? { ...p, enabled } : p));
-    } catch (error) {
-      console.error('Error toggling payment method:', error);
+
+      setPaymentMethods(prev => 
+        prev.map(method => 
+          method.id === id ? { ...method, enabled } : method
+        )
+      );
+    } catch (err) {
+      console.error('Error toggling payment method:', err);
+      throw err;
+    }
+  };
+
+  const saveShowcaseReview = async (review: ShowcaseReview) => {
+    try {
+      const isNew = review.id.startsWith('new-');
+      const payload = {
+        image_url: review.imageUrl,
+        username: review.username,
+        review_text: review.reviewText,
+        rating: review.rating
+      };
+      
+      let data, error;
+      
+      if (isNew) {
+        ({ data, error } = await supabase
+          .from('showcase_reviews')
+          .insert([payload])
+          .select()
+          .single());
+      } else {
+        ({ data, error } = await supabase
+          .from('showcase_reviews')
+          .update(payload)
+          .eq('id', review.id)
+          .select()
+          .single());
+      }
+
+      if (error) throw error;
+
+      const newReview: ShowcaseReview = {
+        id: data.id,
+        imageUrl: data.image_url,
+        username: data.username,
+        reviewText: data.review_text,
+        rating: data.rating,
+        createdAt: data.created_at
+      };
+
+      setShowcaseReviews(prev => 
+        isNew ? [...prev, newReview] : prev.map(r => r.id === newReview.id ? newReview : r)
+      );
+    } catch (err) {
+      console.error('Error saving showcase review:', err);
+      throw err;
+    }
+  };
+
+  const deleteShowcaseReview = async (id: string) => {
+    if (id.startsWith('new-')) {
+      setShowcaseReviews(prev => prev.filter(r => r.id !== id));
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('showcase_reviews')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      setShowcaseReviews(prev => prev.filter(r => r.id !== id));
+    } catch (err) {
+      console.error('Error deleting showcase review:', err);
+      throw err;
     }
   };
 
@@ -811,7 +946,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         pre_order_ends_at: product.preOrderEndsAt,
         pre_order_price: product.preOrderPrice,
         limited_time_enabled: product.limitedTimeEnabled,
-        limited_time_ends_at: product.limitedTimeEndsAt
+        limited_time_ends_at: product.limitedTimeEndsAt,
+        slug: product.slug || null
       };
 
       const { data, error } = await supabase
@@ -831,7 +967,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           preOrderEndsAt: data.pre_order_ends_at ?? undefined,
           preOrderPrice: data.pre_order_price ?? undefined,
           limitedTimeEnabled: data.limited_time_enabled ?? false,
-          limitedTimeEndsAt: data.limited_time_ends_at ?? undefined
+          limitedTimeEndsAt: data.limited_time_ends_at ?? undefined,
+          slug: data.slug ?? undefined
         } as any;
 
         setProducts(prev => {
@@ -873,7 +1010,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     shipping_address?: string,
     shipping_city?: string,
     shipping_postal_code?: string,
-    shipping_country?: string
+    shipping_country?: string,
+    paypal_email?: string
   }) => {
     try {
       // 1. Create order
@@ -888,6 +1026,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           stripe_payment_intent_id: orderData.stripe_payment_intent_id,
           paypal_order_id: orderData.paypal_order_id,
           payment_method_id: orderData.payment_method_id,
+          paypal_email: orderData.paypal_email || (orderData.payment_method_id && paymentMethods.find(p => p.id === orderData.payment_method_id)?.type === 'paypal' ? storeSettings.paypalEmail : null),
           shipping_address: orderData.shipping_address,
           shipping_city: orderData.shipping_city,
           shipping_postal_code: orderData.shipping_postal_code,
@@ -925,6 +1064,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         stripePaymentIntentId: order.stripe_payment_intent_id,
         paypalOrderId: order.paypal_order_id,
         paymentMethodId: order.payment_method_id,
+        paypalEmail: order.paypal_email,
         shippingAddress: order.shipping_address,
         shippingCity: order.shipping_city,
         shippingPostalCode: order.shipping_postal_code,
@@ -1046,14 +1186,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return (
     <AppContext.Provider value={{
-      products, orders, customers, paymentMethods, shippingRegions, taxRules, categories, coupons, policies, cart, isAdmin, isCustomerLoggedIn,
+      products, orders, customers, paymentMethods, shippingRegions, taxRules, categories, coupons, policies, showcaseReviews, cart, isAdmin, isCustomerLoggedIn,
       dropExpiry, isDropActive, storeSettings, liveVisitors,
-      setProducts, setOrders, setPaymentMethods, setShippingRegions, setTaxRules, setCoupons, setPolicies, setStoreSettings,
+      setProducts, setOrders, setPaymentMethods, setShippingRegions, setTaxRules, setCoupons, setPolicies, setShowcaseReviews, setStoreSettings,
       addToCart, removeFromCart, updateCartQuantity, clearCart,
       loginAsAdmin, logout, loginCustomer, logoutCustomer,
       updateStoreSettings, saveProduct, deleteProductFromDb, saveCategory, deleteCategory, formatPrice, user, profile, signInWithGoogle,
       togglePaymentMethod, saveShippingRegion, deleteShippingRegion, saveTaxRule, deleteTaxRule, saveCoupon, deleteCoupon, savePolicy,
       createOrder, updateOrder, deleteOrder, refundOrder, formatOrderNumber,
+      saveShowcaseReview, deleteShowcaseReview,
       isInitialLoading
     }}>
       {children}

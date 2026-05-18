@@ -16,7 +16,7 @@ export const Footer: React.FC = () => {
       <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-20 mb-32">
         <div className="lg:col-span-1">
           <div className="flex flex-col mb-10">
-            <span className="font-serif text-3xl italic font-bold uppercase tracking-widest leading-none">Lash Glaze</span>
+            <span className="font-serif text-3xl italic font-bold uppercase tracking-widest leading-none">{storeSettings.name || 'LashGlaze'}</span>
             <span className="text-[10px] tracking-[0.4em] font-bold opacity-40 uppercase leading-none mt-2">Strip Lashes</span>
             <p className="text-[10px] text-muted mt-6 uppercase tracking-[0.2em] font-bold leading-relaxed max-w-[200px]">
               Authentic, high quality, handcrafted strip lashes
@@ -82,7 +82,7 @@ export const Footer: React.FC = () => {
       </div>
       
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-10 pt-16 text-[9px] uppercase tracking-[0.3em] font-bold text-muted opacity-50">
-        <p className="opacity-50">© 2026 LASH GLAZE STRIP LASHES. ALL RIGHTS RESERVED.</p>
+        <p className="opacity-50">© 2026 {(storeSettings.name || 'LashGlaze').toUpperCase()}. ALL RIGHTS RESERVED.</p>
         <div className="flex gap-12">
            <Link to="/privacy" className="hover:text-ink cursor-pointer transition-colors">Privacy</Link>
            <Link to="/terms" className="hover:text-ink cursor-pointer transition-colors">Terms</Link>

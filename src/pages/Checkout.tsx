@@ -2,11 +2,11 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  */
-
 import React, { useState, useEffect } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Trash2, ChevronLeft, CreditCard, Ship, Lock, CheckCircle2, AlertCircle, ShieldCheck, Beaker, Clock, Copy, Package, Check } from 'lucide-react';
+import { Trash2, ChevronLeft, CreditCard, Ship, Lock, CheckCircle2, AlertCircle, ShieldCheck, Beaker, Clock, Copy, Package, Check, Wallet, QrCode } from 'lucide-react';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
@@ -93,7 +93,7 @@ const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatP
                   card: 'never',
                 },
                 business: {
-                  name: 'Lash Glaze',
+                  name: storeSettings.name || 'LashGlaze',
                 }
              } as any} />
           </div>
@@ -331,6 +331,14 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
   };
 
   const handleFinalize = () => {
+    // Check if info is complete
+    if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.city || !customerInfo.postalCode) {
+      setErrorMessage("Please ensure all shipping and contact details are filled out before proceeding.");
+      setIsError(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
     if (isSubscription && !isCustomerLoggedIn) {
       // Trigger login first
       setIsAuthModalOpen(true);
@@ -460,7 +468,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
       } else {
         setIsProcessing(false);
         setIsError(true);
-        setErrorMessage('We encountered an issue while archiving your order data in our atelier. Your payment session has been suspended.');
+        setErrorMessage('We encountered an issue while archiving your order data in our system. Your payment session has been suspended.');
       }
     } catch (err) {
       console.error('Finalize error:', err);
@@ -498,7 +506,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
              >
                Review Logistics & Retry
              </button>
-             <button onClick={onBack} className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted hover:text-ink transition-colors">Return to Atelier</button>
+             <button onClick={onBack} className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted hover:text-ink transition-colors">Return to Shop</button>
           </div>
         </motion.div>
       </div>
@@ -529,7 +537,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
           <div className="flex items-center justify-center gap-2 mb-12">
             <div className="h-[2px] w-4 bg-green-600 animate-pulse" />
             <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-green-600/80">
-              {isCustomerLoggedIn ? 'Securing your atelier profile... tracking order in 1s' : 'Order finalized successfully'}
+              {isCustomerLoggedIn ? 'Securing your profile... tracking order in 1s' : 'Order finalized successfully'}
             </p>
             <div className="h-[2px] w-4 bg-green-600 animate-pulse" />
           </div>
@@ -570,7 +578,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
           </div>
           
           <p className="text-sm text-topbarText/70 leading-relaxed mb-12">
-            A secure confirmation has been dispatched to your email. You will receive cryptographic tracking details once your order leaves our atelier.
+            A secure confirmation has been dispatched to your email. You will receive cryptographic tracking details once your order leaves our facility.
           </p>
 
           <button onClick={onBack} className="luxury-button-filled w-full font-bold">Return to Storefront</button>
@@ -611,21 +619,24 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <input 
                   type="text" 
-                  placeholder="First Name" 
+                  placeholder="First Name *" 
+                  required
                   value={customerInfo.firstName}
                   onChange={(e) => setCustomerInfo({...customerInfo, firstName: e.target.value})}
                   className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
                 />
                 <input 
                   type="text" 
-                  placeholder="Last Name" 
+                  placeholder="Last Name *" 
+                  required
                   value={customerInfo.lastName}
                   onChange={(e) => setCustomerInfo({...customerInfo, lastName: e.target.value})}
                   className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
                 />
                 <input 
                   type="email" 
-                  placeholder="Email Address" 
+                  placeholder="Email Address *" 
+                  required
                   value={customerInfo.email}
                   onChange={(e) => setCustomerInfo({...customerInfo, email: e.target.value})}
                   className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all md:col-span-2" 
@@ -641,7 +652,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <input 
                    type="text" 
-                   placeholder="Street Address" 
+                   placeholder="Street Address *" 
+                   required
                    value={customerInfo.address}
                    onChange={(e) => setCustomerInfo({...customerInfo, address: e.target.value})}
                    className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all md:col-span-2" 
@@ -649,14 +661,16 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                 <input type="text" placeholder="Apt, Suite, Room (Optional)" className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all md:col-span-2" />
                 <input 
                   type="text" 
-                  placeholder="City" 
+                  placeholder="City *" 
+                  required
                   value={customerInfo.city}
                   onChange={(e) => setCustomerInfo({...customerInfo, city: e.target.value})}
                   className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
                 />
                 <input 
                   type="text" 
-                  placeholder="Postal Code" 
+                  placeholder="Postal Code *" 
+                  required
                   value={customerInfo.postalCode}
                   onChange={(e) => setCustomerInfo({...customerInfo, postalCode: e.target.value})}
                   className="bg-accent/10 text-ink placeholder:text-muted/40 px-6 py-5 text-xs font-bold uppercase tracking-widest focus:outline-none shadow-inner transition-all" 
@@ -708,92 +722,94 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               </div>
             </section>
 
-            <section>
-              <div className="flex items-center gap-6 mb-10">
-                 <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">04</div>
-                 <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Replenishment Profile</h2>
-              </div>
-              <div className="space-y-4">
-                 <div className={`transition-all rounded-none shadow-sm ${isSubscription ? 'bg-accent/10 shadow-xl' : 'bg-accent/5'}`}>
-                    <button 
-                      onClick={() => {
-                        if (!existingActiveSubscription) {
-                          setIsSubscription(!isSubscription);
-                        }
-                      }}
-                      disabled={!!existingActiveSubscription}
-                      className={`w-full flex justify-between items-center px-4 md:px-8 py-6 transition-all rounded-none ${
-                        isSubscription ? 'bg-ink text-paper shadow-xl' : 'hover:bg-accent/10'
-                      } ${existingActiveSubscription ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    >
-                       <div className="flex items-center gap-4">
-                          <div className={`w-4 h-4 rounded-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.1)] ${isSubscription ? 'bg-paper shadow-none' : 'bg-paper/50'} flex items-center justify-center`}>
-                            {isSubscription && <div className="w-2 h-2 bg-ink rounded-full" />}
-                            {existingActiveSubscription && <Check size={10} className="text-emerald-500" />}
-                          </div>
-                          <div className="text-left">
-                            <span className="text-[10px] uppercase tracking-[0.2em] font-bold block">
-                              {existingActiveSubscription ? 'Active Subscription Secured' : 'Subscribe & Save'}
+            {storeSettings.subscriptionsEnabled && (
+              <section>
+                <div className="flex items-center gap-6 mb-10">
+                   <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">04</div>
+                   <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Replenishment Profile</h2>
+                </div>
+                <div className="space-y-4">
+                   <div className={`transition-all rounded-none shadow-sm ${isSubscription ? 'bg-accent/10 shadow-xl' : 'bg-accent/5'}`}>
+                      <button 
+                        onClick={() => {
+                          if (!existingActiveSubscription) {
+                            setIsSubscription(!isSubscription);
+                          }
+                        }}
+                        disabled={!!existingActiveSubscription}
+                        className={`w-full flex justify-between items-center px-4 md:px-8 py-6 transition-all rounded-none ${
+                          isSubscription ? 'bg-ink text-paper shadow-xl' : 'hover:bg-accent/10'
+                        } ${existingActiveSubscription ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                         <div className="flex items-center gap-4">
+                            <div className={`w-4 h-4 rounded-full shadow-[inset_0_0_0_1px_rgba(0,0,0,0.1)] ${isSubscription ? 'bg-paper shadow-none' : 'bg-paper/50'} flex items-center justify-center`}>
+                              {isSubscription && <div className="w-2 h-2 bg-ink rounded-full" />}
+                              {existingActiveSubscription && <Check size={10} className="text-emerald-500" />}
+                            </div>
+                            <div className="text-left">
+                              <span className="text-[10px] uppercase tracking-[0.2em] font-bold block">
+                                {existingActiveSubscription ? 'Active Subscription Secured' : 'Subscribe & Save'}
+                              </span>
+                              <span className="text-[8px] uppercase tracking-widest opacity-50 block mt-1">
+                                {existingActiveSubscription 
+                                  ? `Already enrolled in ${existingActiveSubscription.interval} replenishment`
+                                  : 'Automated order delivered to your profile'}
+                              </span>
+                            </div>
+                         </div>
+                         <div className="text-right">
+                            <span className={`text-[10px] font-mono font-bold italic ${isSubscription ? 'text-paper' : 'text-gold'}`}>
+                              {existingActiveSubscription ? 'Priority Status Active' : 'Up to 15% Savings'}
                             </span>
-                            <span className="text-[8px] uppercase tracking-widest opacity-50 block mt-1">
-                              {existingActiveSubscription 
-                                ? `Already enrolled in ${existingActiveSubscription.interval} replenishment`
-                                : 'Automated order delivered to your atelier'}
-                            </span>
-                          </div>
-                       </div>
-                       <div className="text-right">
-                          <span className={`text-[10px] font-mono font-bold italic ${isSubscription ? 'text-paper' : 'text-gold'}`}>
-                            {existingActiveSubscription ? 'Priority Status Active' : 'Up to 15% Savings'}
-                          </span>
-                       </div>
-                    </button>
-
-                    <AnimatePresence>
-                      {isSubscription && !existingActiveSubscription && (
-                        <motion.div 
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: 'auto', opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          className="overflow-hidden"
-                        >
-                          <div className="px-8 pb-8 pt-4 space-y-6">
-                             <div className="grid grid-cols-2 gap-6">
-                                <button 
-                                  onClick={() => setSubscriptionInterval('fortnightly')}
-                                  className={`flex flex-col p-6 text-left transition-all rounded-none shadow-sm ${subscriptionInterval === 'fortnightly' ? 'bg-paper text-ink shadow-md' : 'bg-transparent opacity-60 hover:opacity-100'}`}
-                                >
-                                   <span className="text-[10px] uppercase tracking-tighter font-bold mb-2">Every 2 Weeks</span>
-                                   <span className="text-xs font-mono font-bold">15% Discount</span>
-                                   <span className="text-[8px] uppercase tracking-widest opacity-40 mt-2 italic">Priority Processing</span>
-                                </button>
-                                <button 
-                                  onClick={() => setSubscriptionInterval('monthly')}
-                                  className={`flex flex-col p-6 text-left transition-all rounded-none shadow-sm ${subscriptionInterval === 'monthly' ? 'bg-paper text-ink shadow-md' : 'bg-transparent opacity-60 hover:opacity-100'}`}
-                                >
-                                   <span className="text-[10px] uppercase tracking-tighter font-bold mb-2">Every 4 Weeks</span>
-                                   <span className="text-xs font-mono font-bold">10% Discount</span>
-                                   <span className="text-[8px] uppercase tracking-widest opacity-40 mt-2 italic">Standard Processing</span>
-                                </button>
+                         </div>
+                      </button>
+  
+                      <AnimatePresence>
+                        {isSubscription && !existingActiveSubscription && (
+                          <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="px-8 pb-8 pt-4 space-y-6">
+                               <div className="grid grid-cols-2 gap-6">
+                                  <button 
+                                    onClick={() => setSubscriptionInterval('fortnightly')}
+                                    className={`flex flex-col p-6 text-left transition-all rounded-none shadow-sm ${subscriptionInterval === 'fortnightly' ? 'bg-paper text-ink shadow-md' : 'bg-transparent opacity-60 hover:opacity-100'}`}
+                                  >
+                                     <span className="text-[10px] uppercase tracking-tighter font-bold mb-2">Every 2 Weeks</span>
+                                     <span className="text-xs font-mono font-bold">15% Discount</span>
+                                     <span className="text-[8px] uppercase tracking-widest opacity-40 mt-2 italic">Priority Processing</span>
+                                  </button>
+                                  <button 
+                                    onClick={() => setSubscriptionInterval('monthly')}
+                                    className={`flex flex-col p-6 text-left transition-all rounded-none shadow-sm ${subscriptionInterval === 'monthly' ? 'bg-paper text-ink shadow-md' : 'bg-transparent opacity-60 hover:opacity-100'}`}
+                                  >
+                                     <span className="text-[10px] uppercase tracking-tighter font-bold mb-2">Every 4 Weeks</span>
+                                     <span className="text-xs font-mono font-bold">10% Discount</span>
+                                     <span className="text-[8px] uppercase tracking-widest opacity-40 mt-2 italic">Standard Processing</span>
+                                  </button>
+                               </div>
+                               <p className="text-[9px] text-muted italic serif max-w-md">
+                                  Subscription members receive exclusive priority access to future drops and limited editions. Cancel or modify your cycle at any time via your customer profile.
+                                </p>
                              </div>
-                             <p className="text-[9px] text-muted italic serif max-w-md">
-                                Subscription members receive exclusive priority access to future drops and limited editions. Cancel or modify your cycle at any time via your customer profile.
-                             </p>
-                          </div>
-                        </motion.div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                      
+                      {existingActiveSubscription && (
+                         <div className="px-8 pb-8 pt-2">
+                            <p className="text-[9px] text-emerald-700/60 font-bold uppercase tracking-widest">
+                               Note: You may only maintain one active replenishment cycle at a time to ensure exclusive priority remains available for all members.
+                            </p>
+                         </div>
                       )}
-                    </AnimatePresence>
-                    
-                    {existingActiveSubscription && (
-                       <div className="px-8 pb-8 pt-2">
-                          <p className="text-[9px] text-emerald-700/60 font-bold uppercase tracking-widest">
-                             Note: You may only maintain one active replenishment cycle at a time to ensure exclusive priority remains available for all atelier members.
-                          </p>
-                       </div>
-                    )}
-                 </div>
-              </div>
-            </section>
+                   </div>
+                </div>
+              </section>
+            )}
 
             <section id="requirement-agreements" className="space-y-8 bg-accent/5 p-8 shadow-inner">
                <div className="flex items-center gap-4 mb-2">
@@ -855,7 +871,9 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
 
             <section>
               <div className="flex items-center gap-6 mb-10">
-                 <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">05</div>
+                 <div className="w-10 h-10 flex items-center justify-center text-xs font-bold bg-accent/10 rounded-none italic serif shadow-sm">
+                   {storeSettings.subscriptionsEnabled ? '05' : '04'}
+                 </div>
                  <h2 className="text-[11px] uppercase tracking-[0.3em] font-bold">Financial Selection</h2>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -872,6 +890,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                         {p.type === 'paypal' && <Ship size={20} />}
                         {p.type === 'klarna' && <Lock size={20} />}
                         {p.type === 'test' && <Beaker size={20} />}
+                        {p.type === 'crypto' && <Wallet size={20} />}
                       </div>
                       <span className="text-[9px] uppercase font-bold tracking-[0.2em]">{p.name}</span>
                    </button>
@@ -882,40 +901,277 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               <div className="bg-accent/5 px-0 py-6 md:p-6 shadow-inner min-h-[150px]">
                  {selectedPaymentId && (
                     <>
-                       {paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'paypal' && (
-                         <div className="flex flex-col items-center justify-center h-full">
-                           <div className="w-full max-w-sm">
-                             <PayPalScriptProvider options={{ clientId: (import.meta as any).env.VITE_PAYPAL_CLIENT_ID || "test", currency: storeSettings.currency === '£' ? 'GBP' : (storeSettings.currency === '$' ? 'USD' : 'EUR') }}>
-                               <PayPalButtons style={{ layout: "vertical", shape: "rect", color: "black" }} 
-                                 onClick={(data, actions) => {
-                                   if (!agreeTerms || !agreeData) {
-                                     setShowError(true);
-                                     const element = document.getElementById('requirement-agreements');
-                                     if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                     return actions.reject();
-                                   }
-                                   return actions.resolve();
-                                 }}
-                                 createOrder={(data, actions) => {
-                                   return actions.order.create({
-                                     intent: "CAPTURE",
-                                     purchase_units: [{ amount: { value: total.toString(), currency_code: storeSettings.currency === '£' ? 'GBP' : (storeSettings.currency === '$' ? 'USD' : 'EUR') } }]
-                                   });
-                                 }}
-                                 onApprove={async (data, actions) => {
-                                   if (actions.order) {
-                                     const details = await actions.order.capture();
-                                     handleApproveAuth({ 
-                                       paypal_order_id: details.id, 
-                                       payment_method_id: selectedPaymentId || undefined 
-                                     });
-                                   }
-                                 }}
-                               />
-                             </PayPalScriptProvider>
-                           </div>
-                         </div>
-                       )}
+                      {paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'paypal' && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex flex-col items-center py-12 px-4"
+                          >
+                            <div className="max-w-xl w-full">
+                              <div className="text-center mb-12">
+                                <motion.div 
+                                  initial={{ scale: 0.8 }}
+                                  animate={{ scale: 1 }}
+                                  className="w-24 h-24 bg-ink text-paper mx-auto mb-8 flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
+                                >
+                                  <ShieldCheck size={40} strokeWidth={1} />
+                                </motion.div>
+                                <h3 className="font-serif text-4xl italic text-ink mb-3">Manual Transfer</h3>
+                                <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-muted">Friends & Family Protocol</p>
+                              </div>
+
+                              <div className="space-y-12">
+                                {/* Step 1: Amount */}
+                                <div className="flex gap-8 items-start">
+                                  <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">01</div>
+                                  <div className="space-y-4 flex-grow">
+                                    <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted">Transfer Amount</p>
+                                    <div className="bg-paper p-8 shadow-[0_15px_35px_rgba(0,0,0,0.05)] relative overflow-hidden group">
+                                      <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                                        <Package size={60} strokeWidth={1} />
+                                      </div>
+                                      <p className="text-3xl font-serif italic text-ink">{formatPrice(total)}</p>
+                                      <p className="text-[8px] uppercase tracking-widest text-muted mt-2">Exact total including logistics</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Step 2: Credentials */}
+                                <div className="flex gap-8 items-start">
+                                  <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">02</div>
+                                  <div className="space-y-6 flex-grow">
+                                    <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted">Transfer Credentials</p>
+                                    
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div className="bg-paper p-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all group">
+                                        <div className="flex justify-between items-start mb-4">
+                                          <p className="text-[8px] uppercase font-bold tracking-widest text-muted">PayPal.me Link</p>
+                                          <button 
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(storeSettings.paypalMeLink || 'https://paypal.me/lashglaze');
+                                              setCopied(true);
+                                              setTimeout(() => setCopied(false), 2000);
+                                            }}
+                                            className="text-muted hover:text-gold transition-colors"
+                                          >
+                                            {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                                          </button>
+                                        </div>
+                                        <p className="text-[10px] font-mono font-bold truncate text-ink">{storeSettings.paypalMeLink || 'paypal.me/lashglaze'}</p>
+                                      </div>
+
+                                      <div className="bg-paper p-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all group">
+                                        <div className="flex justify-between items-start mb-4">
+                                          <p className="text-[8px] uppercase font-bold tracking-widest text-muted">Direct Email</p>
+                                          <button 
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(storeSettings.paypalEmail || 'concierge@lashglaze.com');
+                                              setCopied(true);
+                                              setTimeout(() => setCopied(false), 2000);
+                                            }}
+                                            className="text-muted hover:text-gold transition-colors"
+                                          >
+                                            {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                                          </button>
+                                        </div>
+                                        <p className="text-[10px] font-mono font-bold text-ink">{storeSettings.paypalEmail || 'concierge@lashglaze.com'}</p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Step 3: Mandatory Selection */}
+                                <div className="flex gap-8 items-start">
+                                  <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">03</div>
+                                  <div className="space-y-6 flex-grow">
+                                    <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted">Mandatory Classification</p>
+                                    <div className="bg-amber-50/50 p-8 shadow-[4px_0_0_0_inset_#d97706] space-y-4">
+                                      <div className="flex items-center gap-3 text-amber-900">
+                                        <AlertCircle size={16} />
+                                        <span className="text-[10px] font-bold uppercase tracking-widest">Action Required</span>
+                                      </div>
+                                      <p className="text-[11px] text-amber-900/80 leading-relaxed font-bold">
+                                        You MUST select <span className="text-amber-950 underline decoration-2 underline-offset-4 italic">"Friends & Family"</span> during the PayPal transfer process. 
+                                        Payments marked as "Goods & Services" will be instantly rejected by our automated audit system.
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Final Action */}
+                                <div className="pt-8 space-y-6">
+                                  <button 
+                                    onClick={() => {
+                                      if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.city || !customerInfo.postalCode) {
+                                        setErrorMessage("Please ensure all shipping and contact details are filled out before proceeding.");
+                                        setIsError(true);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        return;
+                                      }
+                                      if (!agreeTerms || !agreeData) {
+                                        setShowError(true);
+                                        document.getElementById('requirement-agreements')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        return;
+                                      }
+                                      handleApproveAuth({ payment_method_id: selectedPaymentId || undefined });
+                                    }}
+                                    className="w-full bg-ink text-paper py-8 text-[11px] font-bold uppercase tracking-[0.5em] shadow-[0_30px_60px_rgba(0,0,0,0.2)] hover:shadow-[0_40px_80px_rgba(0,0,0,0.3)] hover:-translate-y-1 transition-all group relative overflow-hidden"
+                                  >
+                                    <span className="relative z-10">{isProcessing ? 'Verifying Transfer...' : 'Confirm Transfer Sent'}</span>
+                                    <div className="absolute inset-0 bg-paper/10 -translate-x-full group-hover:translate-x-0 transition-transform duration-700 ease-out" />
+                                  </button>
+                                  <div className="flex items-center justify-center gap-4 opacity-30">
+                                    <div className="h-[1px] flex-grow bg-ink/20" />
+                                    <span className="text-[8px] font-bold tracking-[0.3em] uppercase">Secured by {storeSettings.name || 'LashGlaze'}</span>
+                                    <div className="h-[1px] flex-grow bg-ink/20" />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'crypto' && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="flex flex-col items-center py-12 px-4"
+                          >
+                            <div className="max-w-xl w-full">
+                              <div className="text-center mb-12">
+                                <motion.div 
+                                  initial={{ scale: 0.8 }}
+                                  animate={{ scale: 1 }}
+                                  className="w-24 h-24 bg-ink text-paper mx-auto mb-8 flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
+                                >
+                                  <QrCode size={40} strokeWidth={1} />
+                                </motion.div>
+                                <h3 className="font-serif text-4xl italic text-ink mb-3">Crypto Transfer</h3>
+                                <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-muted">USDC Blockchain Settlement</p>
+                              </div>
+
+                              <div className="space-y-12">
+                                {/* Step 1: Amount */}
+                                <div className="flex gap-8 items-start">
+                                  <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">01</div>
+                                  <div className="space-y-4 flex-grow">
+                                    <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted">Exact USDC Amount</p>
+                                    <div className="bg-paper p-8 shadow-[0_15px_35px_rgba(0,0,0,0.05)] relative overflow-hidden group">
+                                      <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
+                                        <Wallet size={60} strokeWidth={1} />
+                                      </div>
+                                      <p className="text-3xl font-serif italic text-ink">{total.toFixed(2)} USDC</p>
+                                      <p className="text-[8px] uppercase tracking-widest text-muted mt-2">Send exactly this amount (±5% tolerance)</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Step 2: Address & QR */}
+                                <div className="flex gap-8 items-start">
+                                  <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">02</div>
+                                  <div className="space-y-6 flex-grow">
+                                    <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted">Destination Wallet</p>
+                                    
+                                    <div className="bg-paper p-8 shadow-[0_10px_30px_rgba(0,0,0,0.04)] flex flex-col items-center gap-8">
+                                      <div className="bg-white p-4 border border-accent/10">
+                                        <QRCodeCanvas 
+                                          value={storeSettings.cryptoUsdcAddress || '0x0000000000000000000000000000000000000000'} 
+                                          size={160} 
+                                          level="H"
+                                        />
+                                      </div>
+                                      
+                                      <div className="w-full">
+                                        <div className="flex justify-between items-start mb-4">
+                                          <p className="text-[8px] uppercase font-bold tracking-widest text-muted">Wallet Address (ERC-20/Polygon)</p>
+                                          <button 
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(storeSettings.cryptoUsdcAddress || '0x0000000000000000000000000000000000000000');
+                                              setCopied(true);
+                                              setTimeout(() => setCopied(false), 2000);
+                                            }}
+                                            className="text-muted hover:text-gold transition-colors"
+                                          >
+                                            {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                                          </button>
+                                        </div>
+                                        <p className="text-[10px] font-mono font-bold break-all text-ink text-center p-4 bg-accent/5">
+                                          {storeSettings.cryptoUsdcAddress || '0x0000000000000000000000000000000000000000'}
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Step 3: Verification */}
+                                <div className="pt-8 space-y-6">
+                                  <button 
+                                    onClick={async () => {
+                                      if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.city || !customerInfo.postalCode) {
+                                        setErrorMessage("Please ensure all shipping and contact details are filled out before proceeding.");
+                                        setIsError(true);
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        return;
+                                      }
+                                      if (!agreeTerms || !agreeData) {
+                                        setShowError(true);
+                                        document.getElementById('requirement-agreements')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                        return;
+                                      }
+                                      setIsProcessing(true);
+                                      
+                                      // Poll edge function every 5 seconds for 30 seconds
+                                      let attempts = 0;
+                                      const maxAttempts = 6;
+                                      
+                                      const poll = async () => {
+                                        if (attempts >= maxAttempts) {
+                                          setIsProcessing(false);
+                                          setShowError(true);
+                                          // Optionally show a specific error message here
+                                          return;
+                                        }
+                                        
+                                        try {
+                                          const { data, error } = await supabase.functions.invoke('verify-crypto-payment', {
+                                            body: { 
+                                              expectedAmount: total.toFixed(2), 
+                                              destinationAddress: storeSettings.cryptoUsdcAddress 
+                                            }
+                                          });
+                                          
+                                          if (data?.verified) {
+                                            handleApproveAuth({ payment_method_id: selectedPaymentId || undefined });
+                                            return;
+                                          }
+                                        } catch (err) {
+                                          console.error('Polling error', err);
+                                        }
+                                        
+                                        attempts++;
+                                        setTimeout(poll, 5000);
+                                      };
+                                      
+                                      poll();
+                                    }}
+                                    disabled={isProcessing}
+                                    className="w-full bg-ink text-paper py-8 text-[11px] font-bold uppercase tracking-[0.5em] shadow-[0_30px_60px_rgba(0,0,0,0.2)] hover:shadow-[0_40px_80px_rgba(0,0,0,0.3)] hover:-translate-y-1 transition-all group relative overflow-hidden disabled:opacity-50 disabled:hover:translate-y-0"
+                                  >
+                                    <span className="relative z-10">
+                                      {isProcessing ? 'Polling Blockchain...' : 'I Have Sent The Funds'}
+                                    </span>
+                                    <div className="absolute inset-0 bg-paper/10 -translate-x-full group-hover:translate-x-0 transition-transform duration-700 ease-out" />
+                                  </button>
+                                  <div className="flex items-center justify-center gap-4 opacity-30">
+                                    <div className="h-[1px] flex-grow bg-ink/20" />
+                                    <span className="text-[8px] font-bold tracking-[0.3em] uppercase">Auto-verifies in ~30s</span>
+                                    <div className="h-[1px] flex-grow bg-ink/20" />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
 
                        {paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'klarna' && (
                          <div className="flex flex-col items-center justify-center h-full text-center space-y-4 py-8">
@@ -992,8 +1248,8 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                                  <p className="text-[9px] text-muted max-w-xs leading-relaxed uppercase font-bold tracking-[0.3em]">
                                     {total <= 0 
                                       ? "Order Total must be greater than zero to initialize gateway"
-                                      : !customerInfo.email 
-                                        ? "Please provide your email address above to unlock secure payment methods."
+                                      : (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.city || !customerInfo.postalCode)
+                                        ? "Please provide your full shipping and contact information above to unlock secure payment methods."
                                         : "Waiting for secure connection to Stripe..."}
                                  </p>
                               </div>
@@ -1014,7 +1270,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
             </section>
 
 
-            {selectedPaymentId && paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'paypal' && paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'card' && (
+            {selectedPaymentId && paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'paypal' && paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'card' && paymentMethods.find(p => p.id === selectedPaymentId)?.type !== 'crypto' && (
               <button 
                 onClick={handleFinalize}
                 disabled={isProcessing}
@@ -1181,7 +1437,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                        </div>
                        <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold">
                           <span className="text-muted">Courier</span>
-                          <span className="text-ink">Expedited Atelier</span>
+                          <span className="text-ink">Expedited Shipping</span>
                        </div>
                        <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold pt-4 border-t border-ink/5">
                           <span className="text-muted">Total Paid</span>
@@ -1203,7 +1459,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                     
                     <div className="bg-paper shadow-[inset_0_2px_15px_rgba(0,0,0,0.05)] p-6 mb-8">
                       <p className="text-[8px] uppercase font-bold tracking-widest text-muted mb-1">Merchant</p>
-                      <p className="text-xs font-bold text-ink mb-4">Lash Glaze</p>
+                      <p className="text-xs font-bold text-ink mb-4">{storeSettings.name || 'LashGlaze'}</p>
                       <p className="text-[8px] uppercase font-bold tracking-widest text-muted mb-1">Amount Due</p>
                       <p className="text-2xl font-bold font-serif italic">
                          {selectedPaymentId && paymentMethods.find(p => p.id === selectedPaymentId)?.type === 'test' && isSubscription 

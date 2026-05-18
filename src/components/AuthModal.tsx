@@ -107,7 +107,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         <div className="p-10 space-y-8">
           <div className="text-center">
             <h2 className="text-xl font-serif italic mb-2" style={{ color: theme.ink }}>
-              {isLogin ? 'Welcome Back' : 'Join the Atelier'}
+              {isLogin ? 'Welcome Back' : 'Create Account'}
             </h2>
             <p className="text-[10px] uppercase font-bold tracking-[0.2em] opacity-40" style={{ color: theme.muted }}>
               {isLogin ? 'Enter your credentials to proceed' : 'Create an account for premium access'}

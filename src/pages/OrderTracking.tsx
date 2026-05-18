@@ -228,14 +228,14 @@ export const OrderTracking: React.FC<{ initialOrderId?: string, onMyOrdersClick?
                   </div>
                </div>
                <div className="space-y-6">
-                  <h5 className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted">Atelier Logistics</h5>
+                  <h5 className="text-[10px] uppercase font-bold tracking-[0.3em] text-muted">Logistics</h5>
                   <div className="space-y-4">
                     <div className="flex items-center gap-4">
                        <div className="w-12 h-12 bg-accent/10 rounded-none flex items-center justify-center font-bold italic text-ink shadow-sm text-xs">DHL</div>
                        <p className="text-[10px] uppercase font-bold tracking-widest text-muted">Global Express Priority</p>
                     </div>
                     <p className="text-[10px] font-bold tracking-widest leading-loose uppercase text-ink">
-                      Secured Transit to Destination Atelier<br />
+                      Secured Transit to Destination<br />
                       Dispatch Center: London Central
                     </p>
                   </div>

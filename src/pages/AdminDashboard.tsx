@@ -5,6 +5,8 @@
 
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { supabase } from '../supabase';
+import { Mail, Send } from 'lucide-react';
 import { 
   BarChart3, Package, ShoppingCart, CreditCard, 
   Palette, Users, Settings, LogOut, ChevronLeft, 
@@ -22,6 +24,8 @@ import {
   PieChart, Pie, Cell
 } from 'recharts';
 import { Product, Order } from '../types';
+import ReactQuill from 'react-quill-new';
+import 'react-quill-new/dist/quill.snow.css';
 
 const COLORS = ['#D4AF37', '#E8D5C4', '#1A1A1A', '#9A9187', '#FFFFFF'];
 
@@ -53,7 +57,7 @@ const PIE_DATA = [
   { name: 'Accessories', value: 200 },
 ];
 
-type Tab = 'overview' | 'products' | 'orders' | 'payment' | 'design' | 'customers' | 'settings';
+type Tab = 'overview' | 'products' | 'orders' | 'payment' | 'design' | 'customers' | 'settings' | 'emails';
 
 export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNavigateBack }) => {
   const { 
@@ -87,7 +91,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
           style={{ backgroundColor: `${theme.accent}B3` }}
         >
           <div className="flex flex-col items-center">
-            <span className="font-serif text-4xl italic font-bold uppercase tracking-widest text-gold leading-none" style={{ color: theme.gold }}>Lash Glaze</span>
+            <span className="font-serif text-4xl italic font-bold uppercase tracking-widest text-gold leading-none" style={{ color: theme.gold }}>{storeSettings.name || 'LashGlaze'}</span>
             <span className="text-[10px] tracking-[0.4em] font-bold opacity-40 uppercase leading-none mt-2" style={{ color: theme.ink }}>Strip Lashes</span>
           </div>
           
@@ -128,6 +132,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'policies', label: 'Policies', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'emails', label: 'Emails', icon: Mail },
   ];
 
 
@@ -161,7 +166,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
         <div className="h-20 flex items-center justify-between px-6">
           {isSidebarOpen ? (
             <div className="flex flex-col">
-              <span className="font-serif text-xl italic font-bold uppercase tracking-widest text-gold leading-none">Lash Glaze</span>
+              <span className="font-serif text-xl italic font-bold uppercase tracking-widest text-gold leading-none">{storeSettings.name || 'LashGlaze'}</span>
               <span className={`text-[8px] tracking-[0.3em] font-bold opacity-40 uppercase leading-none mt-1 ${isMobileMenuOpen ? 'text-paper' : 'text-ink'}`}>Strip Lashes</span>
             </div>
           ) : (
@@ -263,6 +268,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
               {activeTab === 'design' && <DesignTab />}
               {activeTab === 'policies' && <PoliciesTab />}
               {activeTab === 'settings' && <SettingsTab />}
+              {activeTab === 'emails' && <EmailWizardTab />}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -329,7 +335,7 @@ const AdminDropdown = ({ value, onChange, options, label }: { value: string, onC
 };
 
 const OverviewTab = ({ totalSales, orders, products, customers }: { totalSales: number, orders: any[], products: any[], customers: any[] }) => {
-  const { formatPrice, formatOrderNumber, liveVisitors } = useApp();
+  const { formatPrice, formatOrderNumber, liveVisitors, storeSettings } = useApp();
   const [timeRange, setTimeRange] = useState('Last 30 Days');
   // Real Analytics Logic
   const conversionRate = orders.length > 0 ? ((orders.length / (orders.length * 28 + 140)) * 100).toFixed(1) : "0.0";
@@ -346,7 +352,7 @@ const OverviewTab = ({ totalSales, orders, products, customers }: { totalSales: 
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 p-8 rounded-lg shadow-inner gap-6">
          <div>
             <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Performance Overview</h1>
-            <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Lash Glaze Strip Lashes Analytics</p>
+            <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">{storeSettings.name || 'LashGlaze'} Analytics</p>
          </div>
          <div className="flex flex-wrap gap-4">
             <div className="min-w-[180px]">
@@ -499,7 +505,7 @@ const OverviewTab = ({ totalSales, orders, products, customers }: { totalSales: 
                 <div className="p-6 flex justify-between items-center">
                    <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold flex items-center gap-3">
                       <Clock size={14} className="text-gold" />
-                      Atelier Audit Log
+                      System Audit Log
                    </h3>
                    <button className="text-[9px] uppercase tracking-widest font-bold text-muted hover:text-ink transition-colors flex items-center gap-2">
                       <Download size={12} />
@@ -786,7 +792,7 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
     price: initialData?.price?.toString() || '',
     salePrice: initialData?.salePrice?.toString() || '',
     category: initialData?.category || 'Lashes',
-    brand: initialData?.brand || 'Lash Glaze Strip Lashes',
+    brand: initialData?.brand || 'LashGlaze',
     image: initialData?.image || '',
     gallery: initialData?.gallery || [] as string[],
     tags: initialData?.tags?.join(', ') || '',
@@ -800,6 +806,7 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
     preOrderPrice: initialData?.preOrderPrice?.toString() || '',
     limitedTimeEnabled: initialData?.limitedTimeEnabled || false,
     limitedTimeEndsAt: initialData?.limitedTimeEndsAt ? new Date(initialData.limitedTimeEndsAt).toISOString().slice(0, 16) : '',
+    slug: initialData?.slug || '',
   });
 
   const [newColor, setNewColor] = useState('');
@@ -832,6 +839,7 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
       preOrderPrice: data.preOrderPrice ? parseFloat(data.preOrderPrice) : undefined,
       limitedTimeEnabled: data.limitedTimeEnabled,
       limitedTimeEndsAt: data.limitedTimeEndsAt || undefined,
+      slug: data.slug || undefined,
     });
   };
 
@@ -893,9 +901,15 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                    <input value={data.inventory} onChange={e => setData({...data, inventory: e.target.value})} type="number" placeholder="100" className="w-full bg-paper  p-3 rounded text-sm text-ink focus:border-gold outline-none" />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase font-bold text-muted">Tags</label>
-                <input value={data.tags} onChange={e => setData({...data, tags: e.target.value})} type="text" placeholder="Comma separated tags" className="w-full bg-paper  p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none" />
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold text-muted">Custom URL Slug (e.g. "lynx")</label>
+                  <input value={data.slug} onChange={e => setData({...data, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-_]/g, '')})} type="text" placeholder="e.g. eyelash-package" className="w-full bg-paper  p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold text-muted">Tags</label>
+                  <input value={data.tags} onChange={e => setData({...data, tags: e.target.value})} type="text" placeholder="Comma separated tags" className="w-full bg-paper  p-3 rounded text-sm text-ink placeholder:text-muted/50 focus:border-gold outline-none" />
+                </div>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] uppercase font-bold text-muted">Description</label>
@@ -1096,12 +1110,16 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                <div className="aspect-[4/5] bg-paper rounded  overflow-hidden relative group">
                   <img src={data.image || 'https://picsum.photos/seed/placeholder/800/1000'} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
                   <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-black to-transparent">
-                     <p className="text-[10px] uppercase font-bold tracking-widest text-gold mb-1">{data.brand || 'Lash Glaze Strip Lashes'}</p>
+                     <p className="text-[10px] uppercase font-bold tracking-widest text-gold mb-1">{data.brand || 'LashGlaze'}</p>
                      <h3 className="text-xl font-bold uppercase tracking-widest leading-tight">{data.name || 'Product Name'}</h3>
                   </div>
                </div>
                
                <div className="space-y-6">
+                  <div className="space-y-1">
+                     <p className="text-[10px] uppercase text-muted font-bold">Custom URL</p>
+                     <p className="text-sm font-mono text-gold leading-none">/product/{data.slug || 'none'}</p>
+                  </div>
                   <div className="space-y-1">
                      <p className="text-[10px] uppercase text-muted font-bold">Category</p>
                      <p className="text-sm font-bold">{data.category}</p>
@@ -1467,6 +1485,21 @@ const OrdersTab = ({ orders, setOrders, deleteOrder, updateOrder }: any) => {
                              </div>
                            ))}
                          </div>
+                         
+                         <div className="bg-accent/5 p-4 rounded text-[10px] space-y-2 uppercase font-bold tracking-widest mt-2 border-none">
+                           <div className="flex justify-between">
+                             <span className="text-muted">Payment:</span>
+                             <span className="text-ink">
+                               {o.stripePaymentIntentId ? 'Stripe Card' : o.paypalOrderId || o.paypalEmail ? 'PayPal F&F' : 'Manual'}
+                             </span>
+                           </div>
+                           {o.paypalEmail && (
+                             <div className="flex justify-between pt-2 border-t border-white/5 lowercase font-mono">
+                               <span className="text-muted uppercase font-sans font-bold tracking-widest">Recipient:</span>
+                               <span className="text-gold font-bold">{o.paypalEmail}</span>
+                             </div>
+                           )}
+                         </div>
                          <div className="grid grid-cols-2 gap-2 mt-2">
                             {['pending', 'processed', 'shipped', 'out-for-delivery', 'delivered'].map((st) => (
                               <button 
@@ -1557,13 +1590,28 @@ const OrdersTab = ({ orders, setOrders, deleteOrder, updateOrder }: any) => {
                                   <h4 className="text-[9px] uppercase tracking-[0.4em] font-bold text-gold/60">Order Snapshot</h4>
                                   <div className="space-y-3">
                                      {o.items.map((item: any, i: number) => (
-                                       <div key={i} className="flex justify-between items-center bg-accent/10 p-4 rounded">
+                                       <div key={i} className="flex justify-between items-center bg-accent/10 p-4 rounded border-none">
                                           <div className="text-[10px] uppercase font-bold tracking-widest">
                                             Lash x {item.quantity}
                                           </div>
                                           <div className="text-[10px] font-bold text-muted">{formatPrice(item.price * item.quantity)}</div>
                                        </div>
                                      ))}
+                                  </div>
+
+                                  <div className="bg-accent/5 p-4 rounded text-[10px] space-y-2 uppercase font-bold tracking-widest mt-4 border-none">
+                                     <div className="flex justify-between">
+                                        <span className="text-muted">Payment:</span>
+                                        <span className="text-ink text-right">
+                                           {o.stripePaymentIntentId ? 'Stripe Card' : o.paypalOrderId || o.paypalEmail ? 'PayPal F&F' : 'Manual'}
+                                        </span>
+                                     </div>
+                                     {o.paypalEmail && (
+                                        <div className="flex justify-between pt-2 border-t border-white/5 lowercase font-mono">
+                                           <span className="text-muted uppercase font-sans font-bold tracking-widest">Recipient:</span>
+                                           <span className="text-gold font-bold text-right truncate max-w-[200px]">{o.paypalEmail}</span>
+                                        </div>
+                                     )}
                                   </div>
                                </div>
 
@@ -1915,7 +1963,7 @@ const PaymentTab = () => {
     shippingRegions, saveShippingRegion, deleteShippingRegion,
     taxRules, saveTaxRule, deleteTaxRule,
     coupons, saveCoupon, deleteCoupon,
-    storeSettings, products
+    storeSettings, updateStoreSettings, products
   } = useApp();
   
   const [isCouponWizardOpen, setIsCouponWizardOpen] = useState(false);
@@ -1959,6 +2007,20 @@ const PaymentTab = () => {
                   </div>
                 ))}
             </div>
+
+             <div className="p-6 bg-accent/10 border border-white/5 space-y-4">
+                <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Cryptocurrency Portal (USDC)</h3>
+                <div className="space-y-4">
+                   <label className="text-[10px] uppercase text-muted font-bold tracking-widest">USDC Wallet Address</label>
+                   <input 
+                      type="text" 
+                      value={storeSettings.cryptoUsdcAddress || ''}
+                      onChange={(e) => updateStoreSettings({...storeSettings, cryptoUsdcAddress: e.target.value})}
+                      placeholder="0x..."
+                      className="w-full bg-paper p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors" 
+                   />
+                </div>
+             </div>
          </div>
 
          {/* Logistics & Regions */}
@@ -2181,6 +2243,145 @@ const PoliciesTab = () => {
         </div>
     );
 };
+
+const EmailWizardTab = () => {
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedTemplate, setSelectedTemplate] = useState<any | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState('');
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  const fetchTemplates = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('email_templates').select('*').order('type');
+    if (data) {
+      setTemplates(data);
+      if (data.length > 0 && !selectedTemplate) setSelectedTemplate(data[0]);
+    }
+    setLoading(false);
+  };
+
+  const handleSave = async () => {
+    if (!selectedTemplate) return;
+    setSaving(true);
+    const { error } = await supabase
+      .from('email_templates')
+      .update({
+        subject: selectedTemplate.subject,
+        body_html: selectedTemplate.body_html,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', selectedTemplate.id);
+    
+    setSaving(false);
+    if (!error) {
+      setMessage('Template saved successfully!');
+      setTimeout(() => setMessage(''), 3000);
+      fetchTemplates();
+    } else {
+      setMessage('Error saving template.');
+    }
+  };
+
+  const modules = {
+    toolbar: [
+      [{ 'header': [1, 2, 3, false] }],
+      ['bold', 'italic', 'underline', 'strike'],
+      [{ 'color': [] }, { 'background': [] }],
+      [{ 'align': [] }],
+      ['link', 'image'],
+      ['clean']
+    ],
+  };
+
+  if (loading) return <div className="p-8 text-center text-muted animate-pulse">Loading templates...</div>;
+
+  return (
+    <div className="space-y-8 pb-32">
+       <div className="flex flex-col md:flex-row gap-6 justify-between items-start md:items-end">
+          <div className="space-y-2">
+             <h2 className="text-2xl font-serif italic text-gold">Email Design Wizard</h2>
+             <p className="text-[10px] uppercase tracking-[0.2em] text-muted font-bold">Customize dynamic order emails and notifications</p>
+          </div>
+          {message && (
+             <div className="px-4 py-2 bg-gold/10 text-gold text-[10px] uppercase tracking-widest font-bold rounded">
+                {message}
+             </div>
+          )}
+       </div>
+
+       <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
+          <div className="flex items-center gap-4">
+             <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
+                <Mail size={18} />
+             </div>
+             <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Template Selector</h3>
+          </div>
+
+          <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
+            {templates.map(t => (
+               <button
+                 key={t.id}
+                 onClick={() => setSelectedTemplate(t)}
+                 className={`px-6 py-4 rounded whitespace-nowrap text-[10px] font-bold uppercase tracking-widest transition-all ${
+                   selectedTemplate?.id === t.id 
+                   ? 'bg-gold text-paper shadow-lg shadow-gold/20' 
+                   : 'bg-accent/5 text-muted hover:bg-accent/10 hover:text-ink'
+                 }`}
+               >
+                 {t.type.replace(/_/g, ' ')}
+               </button>
+            ))}
+          </div>
+       </div>
+
+       {selectedTemplate && (
+         <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
+            <div className="space-y-4">
+               <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Email Subject Line</label>
+               <input 
+                 type="text" 
+                 value={selectedTemplate.subject}
+                 onChange={(e) => setSelectedTemplate({...selectedTemplate, subject: e.target.value})}
+                 className="w-full bg-accent/10 p-4 text-sm font-bold text-ink outline-none focus:bg-accent/20 transition-colors" 
+               />
+               <p className="text-[9px] text-muted italic">You can use {"{{order_number}}"}, {"{{customer_name}}"} as dynamic tags.</p>
+            </div>
+
+            <div className="space-y-4">
+               <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Email Body (HTML/Visual Builder)</label>
+               <div className="bg-white text-black rounded-lg overflow-hidden border border-white/10">
+                 <ReactQuill 
+                    theme="snow" 
+                    value={selectedTemplate.body_html} 
+                    onChange={(content: string) => setSelectedTemplate({...selectedTemplate, body_html: content})}
+                    modules={modules}
+                    className="h-96"
+                 />
+               </div>
+               <p className="text-[9px] text-muted italic pt-12">Dynamic tags: {"{{order_number}}"}, {"{{customer_name}}"}, {"{{order_items}}"}, {"{{order_total}}"}</p>
+            </div>
+         </div>
+       )}
+
+       <div className="fixed bottom-0 left-0 right-0 lg:left-64 bg-paper/90 backdrop-blur-xl p-4 lg:p-6 flex justify-end z-[45] shadow-[0_-20px_40px_rgba(0,0,0,0.05)] border-t border-white/5">
+          <button 
+            onClick={handleSave}
+            disabled={saving || !selectedTemplate}
+            className="w-full md:w-64 px-16 py-4 bg-ink text-paper text-[10px] font-bold uppercase tracking-[0.3em] hover:bg-gold transition-all disabled:opacity-50"
+          >
+             {saving ? "Saving Template..." : "Save Template Design"}
+          </button>
+       </div>
+    </div>
+  );
+};
+
 ;
 
 const CustomersTab = ({ customers }: any) => {
@@ -2390,7 +2591,7 @@ const CustomersTab = ({ customers }: any) => {
 };
 
 const DesignTab = () => {
-  const { storeSettings, updateStoreSettings } = useApp();
+  const { storeSettings, updateStoreSettings, showcaseReviews, saveShowcaseReview, deleteShowcaseReview } = useApp();
   const theme = storeSettings.colors;
   const [saving, setSaving] = useState(false);
 
@@ -2418,6 +2619,18 @@ const DesignTab = () => {
     }
   };
 
+  const updateHeroText = async (key: 'heroHeading' | 'heroSubheading', value: string) => {
+    const updatedSettings = {
+      ...storeSettings,
+      [key]: value
+    };
+    try {
+      await updateStoreSettings(updatedSettings);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const randomizeColors = () => {
     const hslToHex = (h: number, s: number, l: number) => {
       l /= 100;
@@ -2431,14 +2644,18 @@ const DesignTab = () => {
     };
 
     const baseHue = Math.floor(Math.random() * 360);
-    const compHue = (baseHue + 180) % 360;
+    const accentHue = (baseHue + (Math.random() > 0.5 ? 20 : -20)) % 360;
     const isDark = Math.random() > 0.5;
 
-    const paper = isDark ? hslToHex(baseHue, 20, 8) : hslToHex(baseHue, 20, 98);
-    const ink = isDark ? hslToHex(baseHue, 10, 95) : hslToHex(baseHue, 15, 10);
-    const accent = hslToHex(baseHue, 30, isDark ? 20 : 85);
-    const muted = hslToHex(baseHue, 15, 50);
-    const gold = hslToHex(compHue, 60, 50);
+    const paper = isDark ? hslToHex(baseHue, 15, 7) : hslToHex(baseHue, 10, 99);
+    const ink = isDark ? hslToHex(baseHue, 5, 95) : hslToHex(baseHue, 10, 5);
+    const accent = hslToHex(baseHue, 20, isDark ? 15 : 90);
+    const muted = hslToHex(baseHue, 10, 50);
+    
+    // Derived "samey" colors
+    const gold = hslToHex(accentHue, 50, 55);
+    const preOrder = hslToHex(accentHue, 40, 60);
+    const limitedTime = hslToHex(accentHue, 45, 50);
 
     setSaving(true);
     updateStoreSettings({
@@ -2449,10 +2666,14 @@ const DesignTab = () => {
         accent,
         muted,
         gold,
-        topbarBg: isDark ? hslToHex(baseHue, 15, 12) : hslToHex(baseHue, 15, 15),
-        topbarText: isDark ? hslToHex(baseHue, 10, 95) : hslToHex(baseHue, 10, 98),
-        buttonBg: isDark ? hslToHex(baseHue, 10, 90) : hslToHex(baseHue, 15, 12),
-        buttonText: isDark ? hslToHex(baseHue, 20, 8) : hslToHex(baseHue, 20, 98),
+        preOrder,
+        limitedTime,
+        // Topbar uses derived paper/ink for maximum consistency
+        topbarBg: isDark ? hslToHex(baseHue, 12, 10) : hslToHex(baseHue, 5, 97),
+        topbarText: ink,
+        // Buttons use gold for visibility but share text color with paper
+        buttonBg: gold,
+        buttonText: paper,
       }
     }).finally(() => setSaving(false));
   };
@@ -2461,7 +2682,7 @@ const DesignTab = () => {
     <div className="space-y-12">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 p-4 lg:p-8 rounded-lg gap-6">
          <div>
-            <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Atelier Aesthetic</h1>
+            <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Store Aesthetic</h1>
             <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Visual Identity Configuration</p>
          </div>
          <button 
@@ -2551,6 +2772,30 @@ const DesignTab = () => {
                   </div>
                   <p className="text-[9px] text-muted italic">Used as the background for the editorial hero section.</p>
                </div>
+               <div className="space-y-4">
+                  <p className="text-[10px] uppercase text-muted font-bold tracking-widest leading-loose">Hero Heading</p>
+                  <div className="flex gap-4">
+                    <input 
+                        type="text" 
+                        value={storeSettings.heroHeading || ''} 
+                        onChange={(e) => updateHeroText('heroHeading', e.target.value)}
+                        placeholder="The Muse Collection"
+                        className="flex-grow bg-accent/10 p-4 text-[10px] font-mono font-bold tracking-widest text-ink placeholder:text-muted/50 outline-none focus:bg-accent/20 transition-colors" 
+                     />
+                  </div>
+               </div>
+               <div className="space-y-4">
+                  <p className="text-[10px] uppercase text-muted font-bold tracking-widest leading-loose">Hero Subheading</p>
+                  <div className="flex gap-4">
+                    <input 
+                        type="text" 
+                        value={storeSettings.heroSubheading || ''} 
+                        onChange={(e) => updateHeroText('heroSubheading', e.target.value)}
+                        placeholder="Crafted for the modern gaze."
+                        className="flex-grow bg-accent/10 p-4 text-[10px] font-mono font-bold tracking-widest text-ink placeholder:text-muted/50 outline-none focus:bg-accent/20 transition-colors" 
+                     />
+                  </div>
+               </div>
             </div>
 
             <div className="p-8 bg-paper rounded-lg space-y-8">
@@ -2574,14 +2819,75 @@ const DesignTab = () => {
                     </div>
                </div>
             </div>
+
+            <div className="p-8 bg-paper rounded-lg space-y-8">
+               <div className="flex justify-between items-center">
+                 <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Customer Showcase</h3>
+                 <button 
+                   onClick={() => saveShowcaseReview({ id: `new-${Date.now()}`, imageUrl: '', username: '' })}
+                   className="px-4 py-2 bg-accent/20 text-[10px] font-bold uppercase tracking-widest text-ink hover:bg-accent/30 transition-colors"
+                 >
+                   Add Review
+                 </button>
+               </div>
+               <div className="space-y-6">
+                  {showcaseReviews.map(review => (
+                    <div key={review.id} className="p-4 bg-accent/10 space-y-4">
+                       <div className="flex justify-between items-center">
+                          <input 
+                            type="text" 
+                            value={review.username}
+                            onChange={(e) => saveShowcaseReview({ ...review, username: e.target.value })}
+                            placeholder="Username"
+                            className="bg-transparent text-[12px] font-bold tracking-widest text-ink outline-none"
+                          />
+                          <button 
+                            onClick={() => deleteShowcaseReview(review.id)}
+                            className="text-[10px] uppercase text-red-500 font-bold tracking-widest"
+                          >
+                            Delete
+                          </button>
+                       </div>
+                       <input 
+                         type="text" 
+                         value={review.imageUrl}
+                         onChange={(e) => saveShowcaseReview({ ...review, imageUrl: e.target.value })}
+                         placeholder="Image URL"
+                         className="w-full bg-paper p-3 text-[10px] font-mono outline-none"
+                       />
+                       <textarea 
+                         value={review.reviewText || ''}
+                         onChange={(e) => saveShowcaseReview({ ...review, reviewText: e.target.value })}
+                         placeholder="Review Text"
+                         className="w-full bg-paper p-3 text-[10px] outline-none min-h-[60px]"
+                       />
+                       <div className="flex items-center gap-2">
+                         <span className="text-[10px] uppercase tracking-widest font-bold text-muted">Rating:</span>
+                         <input 
+                           type="number" 
+                           min="1" max="5" 
+                           value={review.rating || 5}
+                           onChange={(e) => saveShowcaseReview({ ...review, rating: parseInt(e.target.value) })}
+                           className="bg-paper p-2 w-16 text-[10px] outline-none"
+                         />
+                       </div>
+                    </div>
+                  ))}
+               </div>
+            </div>
          </div>
 
-         <div className="space-y-8">
+          <div className="space-y-8">
             <div className="relative h-[600px] lg:h-full lg:min-h-[500px] bg-paper rounded-lg p-6 lg:p-12 flex flex-col items-center justify-center text-center group w-full overflow-hidden" style={{backgroundColor: theme.paper}}>
-               <div className="absolute inset-x-8 top-8 flex justify-between border-b border-black/10 pb-8" style={{borderColor: theme.accent}}>
+               {/* Mock Topbar Preview */}
+               <div className="absolute inset-x-0 top-0 h-20 flex items-center justify-between px-8 border-b border-black/5" style={{backgroundColor: theme.topbarBg, borderColor: theme.accent + '20'}}>
                   <div className="flex flex-col items-start">
-                     <span className="font-serif text-2xl italic font-bold uppercase tracking-widest leading-none" style={{color: theme.gold}}>Atelier</span>
-                     <span className="text-[10px] tracking-[0.4em] font-bold opacity-40 uppercase leading-none mt-1" style={{color: theme.ink}}>Preview Mode</span>
+                     <span className="font-serif text-xl italic font-bold uppercase tracking-widest leading-none" style={{color: theme.topbarText || theme.gold}}>LashGlaze</span>
+                     <span className="text-[8px] tracking-[0.4em] font-bold opacity-40 uppercase leading-none mt-1" style={{color: theme.topbarText || theme.ink}}>Visual Identity Mode</span>
+                  </div>
+                  <div className="flex gap-2">
+                     <div className="w-2 h-2 rounded-full" style={{backgroundColor: theme.preOrder}} title="Pre-order Tone" />
+                     <div className="w-2 h-2 rounded-full" style={{backgroundColor: theme.limitedTime}} title="Limited Time Tone" />
                   </div>
                </div>
 
@@ -2589,7 +2895,7 @@ const DesignTab = () => {
                  <Palette size={64} className="opacity-10 mb-8 group-hover:scale-110 transition-transform duration-700" style={{color: theme.gold}} />
                  <h3 className="text-2xl lg:text-3xl font-serif italic mb-4 leading-tight" style={{color: theme.ink}}>Visual Identity Virtualizer</h3>
                  <p className="text-[9px] lg:text-[11px] opacity-60 mb-10 max-w-xs uppercase tracking-[0.3em] leading-loose font-bold px-4" style={{color: theme.muted}}>
-                    Simulate your atelier's aesthetic in real-time across the entire interface.
+                    Simulate your collection's aesthetic in real-time across the entire interface.
                  </p>
                  
                  <div className="w-full max-w-sm space-y-4 px-4">
@@ -2600,7 +2906,7 @@ const DesignTab = () => {
                           The quick brown fox jumps over the lazy dog. Interacting with the luxury tier requires precision.
                        </p>
                     </div>
-                    <button className="w-full py-4 text-[10px] uppercase font-bold tracking-[0.4em] transition-all" style={{backgroundColor: theme.gold, color: theme.paper}}>
+                    <button className="w-full py-4 text-[10px] uppercase font-bold tracking-[0.4em] transition-all shadow-xl" style={{backgroundColor: theme.buttonBg || theme.gold, color: theme.buttonText || theme.paper}}>
                        Export Stylesheet
                     </button>
                  </div>
@@ -2622,6 +2928,66 @@ const SettingsTab = () => {
     apiAccess: false
   });
 
+  const [testRecipientEmail, setTestRecipientEmail] = useState('');
+  const [testStatus, setTestStatus] = useState<{
+    customer: { loading: boolean; success?: boolean; message: string };
+    owner: { loading: boolean; success?: boolean; message: string };
+  }>({
+    customer: { loading: false, message: '' },
+    owner: { loading: false, message: '' }
+  });
+
+  const handleTestEmail = async (type: 'customer' | 'owner') => {
+    setTestStatus(prev => ({
+      ...prev,
+      [type]: { loading: true, message: '' }
+    }));
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const response = await fetch('https://kzmxzudtbfgpvkdctwcw.functions.supabase.co/send-order-emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          test: true,
+          testType: type,
+          testEmail: testRecipientEmail || localSettings.supportEmail || 'test@lashglaze.com',
+          testSmtp: {
+            smtpHost: localSettings.smtpHost,
+            smtpPort: localSettings.smtpPort,
+            smtpUser: localSettings.smtpUser,
+            smtpPass: localSettings.smtpPass,
+            emailFromCustomer: localSettings.emailFromCustomer,
+            emailFromOwner: localSettings.emailFromOwner,
+            emailToOwner: localSettings.emailToOwner,
+          }
+        })
+      });
+
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setTestStatus(prev => ({
+          ...prev,
+          [type]: { loading: false, success: true, message: data.message || 'SMTP Connection Successful. Email sent.' }
+        }));
+      } else {
+        setTestStatus(prev => ({
+          ...prev,
+          [type]: { loading: false, success: false, message: data.error || data.details || 'SMTP Test Failed' }
+        }));
+      }
+    } catch (err: any) {
+      setTestStatus(prev => ({
+        ...prev,
+        [type]: { loading: false, success: false, message: err.message || 'Failed to dispatch test.' }
+      }));
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -2637,13 +3003,100 @@ const SettingsTab = () => {
     <div className="space-y-12 pb-32">
        <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 p-4 lg:p-8 rounded-lg gap-6">
           <div>
-             <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Atelier Parameters</h1>
+             <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Store Parameters</h1>
              <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">Store Global Configuration</p>
           </div>
        </div>
 
        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           <div className="lg:col-span-8 space-y-12">
+              <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
+                      <Lock size={18} />
+                   </div>
+                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Security & Access Control</h3>
+                </div>
+                
+                <div className="space-y-8">
+                   <div className="flex items-center justify-between p-6 bg-accent/5 rounded-lg border border-accent/10">
+                      <div>
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-ink">Timed Password Lock</p>
+                         <p className="text-[9px] text-muted mt-1 italic">Automatically lock the storefront when the timer expires</p>
+                      </div>
+                      <button 
+                         onClick={() => setLocalSettings({...localSettings, passwordLockEnabled: !localSettings.passwordLockEnabled})}
+                         className={`w-12 h-6 rounded-full relative transition-all flex items-center px-1 ${localSettings.passwordLockEnabled ? 'bg-gold' : 'bg-accent/20'}`}
+                      >
+                         <motion.div 
+                            animate={{ x: localSettings.passwordLockEnabled ? 24 : 0 }}
+                            className="w-4 h-4 rounded-full bg-paper shadow-md" 
+                         />
+                      </button>
+                   </div>
+
+                   {localSettings.passwordLockEnabled && (
+                     <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-accent/5"
+                     >
+                        <div className="space-y-4">
+                           <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Access Password</label>
+                           <input 
+                              type="text" 
+                              value={localSettings.passwordLockPassword || ''}
+                              onChange={(e) => setLocalSettings({...localSettings, passwordLockPassword: e.target.value})}
+                              placeholder="e.g. LASHGLAZE2024"
+                              className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors uppercase" 
+                           />
+                        </div>
+                        <div className="space-y-4">
+                           <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Lock Expiration (Lock Time)</label>
+                           <input 
+                              type="datetime-local" 
+                              value={localSettings.passwordLockExpiresAt ? new Date(localSettings.passwordLockExpiresAt).toISOString().slice(0, 16) : ''}
+                              onChange={(e) => setLocalSettings({...localSettings, passwordLockExpiresAt: new Date(e.target.value).toISOString()})}
+                              className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors" 
+                           />
+                        </div>
+                        <div className="md:col-span-2 bg-red-50/50 p-4 border-l-2 border-red-200">
+                           <p className="text-[9px] uppercase tracking-widest font-bold text-red-900 leading-relaxed">
+                              Warning: Once the current time exceeds the expiration time, all non-admin users will be presented with a password prompt. If no password is set, only admins can enter.
+                           </p>
+                        </div>
+                     </motion.div>
+                   )}
+                </div>
+             </div>
+
+             <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
+                      <RefreshCcw size={18} />
+                   </div>
+                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Feature Management</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="flex items-center justify-between p-6 bg-accent/5 rounded-lg border border-accent/10">
+                      <div>
+                         <p className="text-[10px] font-bold uppercase tracking-widest text-ink">Subscribe & Save</p>
+                         <p className="text-[9px] text-muted mt-1 italic">Enable recurring subscription options</p>
+                      </div>
+                      <button 
+                         onClick={() => setLocalSettings({...localSettings, subscriptionsEnabled: !localSettings.subscriptionsEnabled})}
+                         className={`w-12 h-6 rounded-full relative transition-all flex items-center px-1 ${localSettings.subscriptionsEnabled ? 'bg-gold' : 'bg-accent/20'}`}
+                      >
+                         <motion.div 
+                            animate={{ x: localSettings.subscriptionsEnabled ? 24 : 0 }}
+                            className="w-4 h-4 rounded-full bg-paper shadow-md" 
+                         />
+                      </button>
+                   </div>
+                </div>
+             </div>
+
              <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
                 <div className="flex items-center gap-4">
                    <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
@@ -2654,11 +3107,11 @@ const SettingsTab = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                    <div className="space-y-4">
-                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Atelier Name</label>
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Store Name</label>
                       <input 
                          type="text" 
-                         value={localSettings.storeName}
-                         onChange={(e) => setLocalSettings({...localSettings, storeName: e.target.value})}
+                         value={localSettings.name}
+                         onChange={(e) => setLocalSettings({...localSettings, name: e.target.value})}
                          className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors uppercase" 
                       />
                    </div>
@@ -2671,6 +3124,43 @@ const SettingsTab = () => {
                          className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors lowercase" 
                       />
                    </div>
+                </div>
+             </div>
+
+             <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
+                      <CreditCard size={18} />
+                   </div>
+                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">PayPal Friends & Family Portal</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">PayPal Receiver Email</label>
+                      <input 
+                         type="email" 
+                         value={localSettings.paypalEmail || ''}
+                         onChange={(e) => setLocalSettings({...localSettings, paypalEmail: e.target.value})}
+                         placeholder="concierge@lashglaze.com"
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors lowercase" 
+                      />
+                   </div>
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">PayPal.Me Link</label>
+                      <input 
+                         type="text" 
+                         value={localSettings.paypalMeLink || ''}
+                         onChange={(e) => setLocalSettings({...localSettings, paypalMeLink: e.target.value})}
+                         placeholder="https://paypal.me/lashglaze"
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors" 
+                      />
+                   </div>
+                </div>
+                <div className="bg-amber-50 p-6 border-l-2 border-amber-400">
+                   <p className="text-[9px] uppercase tracking-widest font-bold text-amber-900 leading-relaxed">
+                      Note: This will replace the standard PayPal checkout with a manual "Friends & Family" portal. Customers will be instructed to send payment manually to these credentials.
+                   </p>
                 </div>
              </div>
 
@@ -2699,6 +3189,144 @@ const SettingsTab = () => {
                          options={['English (UK)', 'English (US)', 'French', 'German']}
                       />
                    </div>
+                </div>
+             </div>
+
+             {/* SMTP Mailer Configuration */}
+             <div className="bg-paper p-4 lg:p-8 rounded-lg space-y-8">
+                <div className="flex items-center gap-4">
+                   <div className="w-10 h-10 bg-gold/10 rounded flex items-center justify-center text-gold">
+                      <Mail size={18} />
+                   </div>
+                   <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Business Emails & SMTP Mailer</h3>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">SMTP Host</label>
+                      <input 
+                         type="text" 
+                         value={localSettings.smtpHost || ''}
+                         onChange={(e) => setLocalSettings({...localSettings, smtpHost: e.target.value})}
+                         placeholder="e.g. mail.lashglaze.com"
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors" 
+                      />
+                   </div>
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">SMTP Port</label>
+                      <input 
+                         type="number" 
+                         value={localSettings.smtpPort || ''}
+                         onChange={(e) => setLocalSettings({...localSettings, smtpPort: parseInt(e.target.value, 10) || 587})}
+                         placeholder="e.g. 587 or 465"
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors" 
+                      />
+                   </div>
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">SMTP Username</label>
+                      <input 
+                         type="text" 
+                         value={localSettings.smtpUser || ''}
+                         onChange={(e) => setLocalSettings({...localSettings, smtpUser: e.target.value})}
+                         placeholder="e.g. info@lashglaze.com"
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors" 
+                      />
+                   </div>
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">SMTP Password</label>
+                      <input 
+                         type="password" 
+                         value={localSettings.smtpPass || ''}
+                         onChange={(e) => setLocalSettings({...localSettings, smtpPass: e.target.value})}
+                         placeholder="••••••••••••"
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors" 
+                      />
+                   </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Customer Sender Email</label>
+                      <input 
+                         type="email" 
+                         value={localSettings.emailFromCustomer || ''}
+                         onChange={(e) => setLocalSettings({...localSettings, emailFromCustomer: e.target.value})}
+                         placeholder="orders@lashglaze.com"
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors lowercase" 
+                      />
+                   </div>
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Owner Sender Email</label>
+                      <input 
+                         type="email" 
+                         value={localSettings.emailFromOwner || ''}
+                         onChange={(e) => setLocalSettings({...localSettings, emailFromOwner: e.target.value})}
+                         placeholder="info@lashglaze.com"
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors lowercase" 
+                      />
+                   </div>
+                   <div className="space-y-4">
+                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Owner Recipient Email</label>
+                      <input 
+                         type="email" 
+                         value={localSettings.emailToOwner || ''}
+                         onChange={(e) => setLocalSettings({...localSettings, emailToOwner: e.target.value})}
+                         placeholder="owner@lashglaze.com"
+                         className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors lowercase" 
+                      />
+                   </div>
+                </div>
+
+                <div className="p-6 bg-accent/5 rounded-lg space-y-6">
+                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-ink">SMTP Dispatch Diagnostics</h4>
+                   <p className="text-[9px] text-muted italic">Verify your credentials by sending high-fidelity test payloads directly before deploying changes.</p>
+                   
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-end">
+                      <div className="space-y-4">
+                         <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Test Recipient Email</label>
+                         <input 
+                            type="email" 
+                            value={testRecipientEmail}
+                            onChange={(e) => setTestRecipientEmail(e.target.value)}
+                            placeholder="e.g. owner@lashglaze.com"
+                            className="w-full bg-accent/10 p-4 text-[10px] font-bold tracking-widest text-ink outline-none focus:bg-accent/20 transition-colors lowercase" 
+                         />
+                      </div>
+                      
+                      <div className="flex gap-4">
+                         <button 
+                            type="button"
+                            onClick={() => handleTestEmail('customer')}
+                            disabled={testStatus.customer.loading}
+                            className="flex-1 py-4 bg-ink text-paper text-[9px] font-bold uppercase tracking-widest hover:bg-gold transition-all disabled:opacity-50"
+                         >
+                            {testStatus.customer.loading ? "Sending..." : "Test Customer Mail"}
+                         </button>
+                         <button 
+                            type="button"
+                            onClick={() => handleTestEmail('owner')}
+                            disabled={testStatus.owner.loading}
+                            className="flex-1 py-4 bg-ink text-paper text-[9px] font-bold uppercase tracking-widest hover:bg-gold transition-all disabled:opacity-50"
+                         >
+                            {testStatus.owner.loading ? "Sending..." : "Test Owner Mail"}
+                         </button>
+                      </div>
+                   </div>
+
+                   {(testStatus.customer.message || testStatus.owner.message) && (
+                      <div className="space-y-3 pt-4">
+                         {testStatus.customer.message && (
+                            <div className={`p-4 text-[9px] uppercase tracking-wider font-bold rounded ${testStatus.customer.success ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>
+                               Customer Test: {testStatus.customer.message}
+                            </div>
+                         )}
+                         {testStatus.owner.message && (
+                            <div className={`p-4 text-[9px] uppercase tracking-wider font-bold rounded ${testStatus.owner.success ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>
+                               Owner Test: {testStatus.owner.message}
+                            </div>
+                         )}
+                      </div>
+                   )}
                 </div>
              </div>
 
