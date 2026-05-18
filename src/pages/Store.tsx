@@ -153,27 +153,6 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
         </section>
       )}
 
-      {/* Trust Badges - Minimal Editorial Style */}
-      <section className="max-w-5xl mx-auto px-8 md:px-16 py-24">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-          <div className="flex flex-col items-center text-center p-4">
-            <RefreshCcw className="text-muted mb-6" size={24} strokeWidth={1} />
-            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4">Artisanal Craft</h3>
-            <p className="text-[9px] text-muted uppercase tracking-[0.2em] leading-loose max-w-[170px]">Hand-knotted silk perfection</p>
-          </div>
-          <div className="flex flex-col items-center text-center p-4">
-            <Truck className="text-muted mb-6" size={24} strokeWidth={1} />
-            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4">Global Shipping</h3>
-            <p className="text-[9px] text-muted uppercase tracking-[0.2em] leading-loose max-w-[170px]">Tracked delivery worldwide</p>
-          </div>
-          <div className="flex flex-col items-center text-center p-4">
-            <ShieldCheck className="text-muted mb-6" size={24} strokeWidth={1} />
-            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4">Premium Silk</h3>
-            <p className="text-[9px] text-muted uppercase tracking-[0.2em] leading-loose max-w-[170px]">Reusable up to 15 wears</p>
-          </div>
-        </div>
-      </section>
-
       {/* Product Feed */}
       <section id="collection" className="max-w-5xl mx-auto px-8 md:px-16 py-24">
         <div className="flex flex-col items-center mb-16 text-center">
@@ -265,6 +244,27 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
               </div>
             </motion.div>
           ))}
+        </div>
+      </section>
+
+      {/* Trust Badges - Minimal Editorial Style */}
+      <section className="max-w-5xl mx-auto px-8 md:px-16 py-24">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="flex flex-col items-center text-center p-4">
+            <RefreshCcw className="text-muted mb-6" size={24} strokeWidth={1} />
+            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4">Artisanal Craft</h3>
+            <p className="text-[9px] text-muted uppercase tracking-[0.2em] leading-loose max-w-[170px]">Hand-knotted silk perfection</p>
+          </div>
+          <div className="flex flex-col items-center text-center p-4">
+            <Truck className="text-muted mb-6" size={24} strokeWidth={1} />
+            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4">Global Shipping</h3>
+            <p className="text-[9px] text-muted uppercase tracking-[0.2em] leading-loose max-w-[170px]">Tracked delivery worldwide</p>
+          </div>
+          <div className="flex flex-col items-center text-center p-4">
+            <ShieldCheck className="text-muted mb-6" size={24} strokeWidth={1} />
+            <h3 className="text-[10px] uppercase tracking-[0.2em] font-bold mb-4">Premium Silk</h3>
+            <p className="text-[9px] text-muted uppercase tracking-[0.2em] leading-loose max-w-[170px]">Reusable up to 15 wears</p>
+          </div>
         </div>
       </section>
 
