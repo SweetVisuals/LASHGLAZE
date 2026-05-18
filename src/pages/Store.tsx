@@ -218,7 +218,7 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
               <div className="space-y-2 text-center mt-8">
                 <h3 className="font-serif text-2xl md:text-3xl italic group-hover:text-muted transition-colors leading-tight">{product.name}</h3>
                 <div className="flex items-center justify-center gap-4">
-                   <span className="text-[10px] uppercase tracking-widest text-muted">Glaze Series Base</span>
+                   <span className="text-[10px] uppercase tracking-widest text-muted">{product.category || 'Glaze Series Base'}</span>
                    <span className="text-xs text-muted">|</span>
                    <p className="text-sm text-ink font-bold leading-none">
                      {(() => {
