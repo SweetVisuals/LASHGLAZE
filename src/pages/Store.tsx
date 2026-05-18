@@ -88,6 +88,7 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
                   <CountdownTimer 
                     expiry={expiry} 
                     variant="button"
+                    stockCount={productWithTimer?.inventory}
                   />
                 );
               })()}

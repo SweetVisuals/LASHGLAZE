@@ -4,10 +4,11 @@ import { Clock } from 'lucide-react';
 
 interface CountdownTimerProps {
   expiry: Date | string;
-  variant?: 'hero' | 'inline' | 'compact';
+  variant?: 'hero' | 'inline' | 'compact' | 'button';
+  stockCount?: number;
 }
 
-export const CountdownTimer: React.FC<CountdownTimerProps> = ({ expiry, variant = 'hero' }) => {
+export const CountdownTimer: React.FC<CountdownTimerProps> = ({ expiry, variant = 'hero', stockCount }) => {
   const [timeLeft, setTimeLeft] = useState({
     days: 0,
     hours: 0,
@@ -108,7 +109,9 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({ expiry, variant 
             {/* Stock Label */}
             <div className="flex flex-col px-6 border-r border-ink/5">
               <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink whitespace-nowrap">Limited Stock</span>
-              <span className="text-[8px] uppercase tracking-[0.1em] text-gold font-bold">Only 12 items left</span>
+              <span className="text-[8px] uppercase tracking-[0.1em] text-gold font-bold">
+                Only {stockCount !== undefined ? stockCount : 12} items left
+              </span>
             </div>
 
             {/* Timer Section */}
