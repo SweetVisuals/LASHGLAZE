@@ -396,7 +396,7 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
     }
   };
 
-  const handleApproveAuth = async (paymentDetails?: { stripe_payment_intent_id?: string, paypal_order_id?: string, payment_method_id?: string }) => {
+  const handleApproveAuth = async (paymentDetails?: { stripe_payment_intent_id?: string, paypal_order_id?: string, payment_method_id?: string, paypal_email?: string }) => {
     setIsProcessing(true);
     
     try {
@@ -1007,125 +1007,77 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
                             animate={{ opacity: 1, y: 0 }}
                             className="flex flex-col items-center py-12 px-4"
                           >
-                            <div className="max-w-xl w-full">
-                              <div className="text-center mb-12">
+                            <div className="max-w-xl w-full text-center">
+                              <div className="mb-8">
                                 <motion.div 
                                   initial={{ scale: 0.8 }}
                                   animate={{ scale: 1 }}
-                                  className="w-24 h-24 bg-ink text-paper mx-auto mb-8 flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
+                                  className="w-24 h-24 bg-ink text-paper mx-auto mb-6 flex items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.3)]"
                                 >
                                   <ShieldCheck size={40} strokeWidth={1} />
                                 </motion.div>
-                                <h3 className="font-serif text-4xl italic text-ink mb-3">Manual Transfer</h3>
-                                <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-muted">Friends & Family Protocol</p>
+                                <h3 className="font-serif text-4xl italic text-ink mb-2">PayPal Gateway</h3>
+                                <p className="text-[10px] uppercase tracking-[0.4em] font-bold text-muted">Secure Automatic Checkout</p>
                               </div>
 
-                              <div className="space-y-12">
-                                {/* Step 1: Amount */}
-                                <div className="flex gap-8 items-start">
-                                  <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">01</div>
-                                  <div className="space-y-4 flex-grow">
-                                    <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted">Transfer Amount</p>
-                                    <div className="bg-paper p-8 shadow-[0_15px_35px_rgba(0,0,0,0.05)] relative overflow-hidden group">
-                                      <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none">
-                                        <Package size={60} strokeWidth={1} />
-                                      </div>
-                                      <p className="text-3xl font-serif italic text-ink">{formatPrice(total)}</p>
-                                      <p className="text-[8px] uppercase tracking-widest text-muted mt-2">Exact total including logistics</p>
-                                    </div>
-                                  </div>
+                              {(!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.apt || !customerInfo.city || !customerInfo.postalCode) ? (
+                                <div className="bg-accent/5 p-8 text-center shadow-inner">
+                                  <AlertCircle size={24} className="text-muted mx-auto mb-4 opacity-20" strokeWidth={1} />
+                                  <p className="text-[9px] text-muted max-w-xs mx-auto leading-relaxed uppercase font-bold tracking-[0.3em]">
+                                    Please provide your full shipping and contact information above to unlock secure PayPal payment.
+                                  </p>
                                 </div>
-
-                                {/* Step 2: Credentials */}
-                                <div className="flex gap-8 items-start">
-                                  <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">02</div>
-                                  <div className="space-y-6 flex-grow">
-                                    <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted">Transfer Credentials</p>
-                                    
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                      <div className="bg-paper p-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all group">
-                                        <div className="flex justify-between items-start mb-4">
-                                          <p className="text-[8px] uppercase font-bold tracking-widest text-muted">PayPal.me Link</p>
-                                          <button 
-                                            onClick={() => {
-                                              navigator.clipboard.writeText(storeSettings.paypalMeLink || 'https://paypal.me/lashglaze');
-                                              setCopied(true);
-                                              setTimeout(() => setCopied(false), 2000);
-                                            }}
-                                            className="text-muted hover:text-gold transition-colors"
-                                          >
-                                            {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                                          </button>
-                                        </div>
-                                        <p className="text-[10px] font-mono font-bold truncate text-ink">{storeSettings.paypalMeLink || 'paypal.me/lashglaze'}</p>
-                                      </div>
-
-                                      <div className="bg-paper p-6 shadow-[0_10px_30px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(0,0,0,0.08)] transition-all group">
-                                        <div className="flex justify-between items-start mb-4">
-                                          <p className="text-[8px] uppercase font-bold tracking-widest text-muted">Direct Email</p>
-                                          <button 
-                                            onClick={() => {
-                                              navigator.clipboard.writeText(storeSettings.paypalEmail || 'concierge@lashglaze.com');
-                                              setCopied(true);
-                                              setTimeout(() => setCopied(false), 2000);
-                                            }}
-                                            className="text-muted hover:text-gold transition-colors"
-                                          >
-                                            {copied ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
-                                          </button>
-                                        </div>
-                                        <p className="text-[10px] font-mono font-bold text-ink">{storeSettings.paypalEmail || 'concierge@lashglaze.com'}</p>
-                                      </div>
-                                    </div>
-                                  </div>
+                              ) : (!agreeTerms || !agreeData) ? (
+                                <div className="bg-accent/5 p-8 text-center shadow-inner">
+                                  <AlertCircle size={24} className="text-muted mx-auto mb-4 opacity-20" strokeWidth={1} />
+                                  <p className="text-[9px] text-muted max-w-xs mx-auto leading-relaxed uppercase font-bold tracking-[0.3em]">
+                                    Please review and check the agreements at the bottom of the page to unlock PayPal checkout.
+                                  </p>
                                 </div>
-
-                                {/* Step 3: Mandatory Selection */}
-                                <div className="flex gap-8 items-start">
-                                  <div className="w-12 h-12 bg-accent/10 flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">03</div>
-                                  <div className="space-y-6 flex-grow">
-                                    <p className="text-[9px] uppercase tracking-[0.2em] font-bold text-muted">Mandatory Classification</p>
-                                    <div className="bg-amber-50/50 p-8 shadow-[4px_0_0_0_inset_#d97706] space-y-4">
-                                      <div className="flex items-center gap-3 text-amber-900">
-                                        <AlertCircle size={16} />
-                                        <span className="text-[10px] font-bold uppercase tracking-widest">Action Required</span>
-                                      </div>
-                                      <p className="text-[11px] text-amber-900/80 leading-relaxed font-bold">
-                                        You MUST select <span className="text-amber-950 underline decoration-2 underline-offset-4 italic">"Friends & Family"</span> during the PayPal transfer process. 
-                                        Payments marked as "Goods & Services" will be instantly rejected by our automated audit system.
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Final Action */}
-                                <div className="pt-8 space-y-6">
-                                  <button 
-                                    onClick={() => {
-                                      if (!customerInfo.firstName || !customerInfo.lastName || !customerInfo.email || !customerInfo.address || !customerInfo.apt || !customerInfo.city || !customerInfo.postalCode) {
-                                        setErrorMessage("Please ensure all shipping and contact details are filled out before proceeding.");
+                              ) : (
+                                <div className="w-full mt-8 max-w-md mx-auto">
+                                  <PayPalScriptProvider options={{ 
+                                    "client-id": (import.meta as any).env.VITE_PAYPAL_CLIENT_ID || "sb",
+                                    currency: storeSettings.currency || "USD"
+                                  }}>
+                                    <PayPalButtons
+                                      style={{ layout: "vertical", color: "gold", shape: "rect", label: "paypal" }}
+                                      createOrder={(data, actions) => {
+                                        return actions.order.create({
+                                          purchase_units: [
+                                            {
+                                              amount: {
+                                                currency_code: storeSettings.currency || "USD",
+                                                value: total.toFixed(2),
+                                              },
+                                            },
+                                          ],
+                                        });
+                                      }}
+                                      onApprove={async (data, actions) => {
+                                        if (actions.order) {
+                                          const details = await actions.order.capture();
+                                          const paypalEmail = details.payer?.email_address;
+                                          handleApproveAuth({ 
+                                            paypal_order_id: data.orderID, 
+                                            payment_method_id: selectedPaymentId || undefined,
+                                            paypal_email: paypalEmail || undefined
+                                          });
+                                        }
+                                      }}
+                                      onError={(err) => {
+                                        console.error("PayPal Error:", err);
+                                        setErrorMessage("An error occurred during PayPal checkout. Please try again.");
                                         setIsError(true);
-                                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                                        return;
-                                      }
-                                      if (!agreeTerms || !agreeData) {
-                                        setShowError(true);
-                                        document.getElementById('requirement-agreements')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                        return;
-                                      }
-                                      handleApproveAuth({ payment_method_id: selectedPaymentId || undefined });
-                                    }}
-                                    className="w-full bg-ink text-paper py-8 text-[11px] font-bold uppercase tracking-[0.5em] shadow-[0_30px_60px_rgba(0,0,0,0.2)] hover:shadow-[0_40px_80px_rgba(0,0,0,0.3)] hover:-translate-y-1 transition-all group relative overflow-hidden"
-                                  >
-                                    <span className="relative z-10">{isProcessing ? 'Verifying Transfer...' : 'Confirm Transfer Sent'}</span>
-                                    <div className="absolute inset-0 bg-paper/10 -translate-x-full group-hover:translate-x-0 transition-transform duration-700 ease-out" />
-                                  </button>
-                                  <div className="flex items-center justify-center gap-4 opacity-30">
-                                    <div className="h-[1px] flex-grow bg-ink/20" />
-                                    <span className="text-[8px] font-bold tracking-[0.3em] uppercase">Secured by {storeSettings.name || 'LashGlaze'}</span>
-                                    <div className="h-[1px] flex-grow bg-ink/20" />
-                                  </div>
+                                      }}
+                                    />
+                                  </PayPalScriptProvider>
                                 </div>
+                              )}
+                              <div className="flex items-center justify-center gap-4 opacity-30 mt-8">
+                                <div className="h-[1px] flex-grow bg-ink/20" />
+                                <span className="text-[8px] font-bold tracking-[0.3em] uppercase">Secured by {storeSettings.name || 'LashGlaze'}</span>
+                                <div className="h-[1px] flex-grow bg-ink/20" />
                               </div>
                             </div>
                           </motion.div>
