@@ -42,6 +42,14 @@ serve(async (req) => {
       throw new Error(`Failed to load store settings: ${settingsError?.message || 'No settings found'}`)
     }
 
+    // Fetch email templates from database to use custom designs
+    const { data: dbTemplates } = await supabase
+      .from('email_templates')
+      .select('*')
+
+    const customerDbTemplate = dbTemplates?.find((t: any) => t.type === 'customer_order_confirmation')
+    const ownerDbTemplate = dbTemplates?.find((t: any) => t.type === 'owner_new_order_alert')
+
     // Determine SMTP configuration (either passed in test, or from DB)
     const smtpHost = testSmtp?.smtpHost || settings.smtp_host
     const smtpPort = parseInt(testSmtp?.smtpPort || settings.smtp_port || '587', 10)
@@ -346,12 +354,12 @@ serve(async (req) => {
       </html>
     `
 
-    const getOwnerTemplate = (customerName: string, customerEmail: string, orderNum: string, itemsListHtml: string, totalStr: string, shippingAddress: string, paymentMethod: string) => `
+    const getOwnerTemplate = (customerName: string, customerEmail: string, orderNum: string, itemsListHtml: string, totalStr: string, shippingAddress: string, paymentMethod: string, orderDateStr: string) => `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="utf-8">
-        <title>New Order Alert - LashGlaze Admin</title>
+        <title>New Order Alert - LashGlaze</title>
         <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Playfair+Display:ital,wght@1,400;1,700&display=swap" rel="stylesheet">
         <style>
           body {
@@ -436,6 +444,7 @@ serve(async (req) => {
             justify-content: space-between;
             font-size: 11px;
             padding: 10px 0;
+            color: #F2F2F3;
           }
           .footer {
             text-align: center;
@@ -450,53 +459,53 @@ serve(async (req) => {
       <body>
         <div class="container">
           <div class="header">
-            <span class="logo">LashGlaze Command Center</span>
+            <span class="logo">LashGlaze Orders</span>
           </div>
           
           <div class="alert-banner">
-            <h1 class="alert-title">New Acquisition Registered</h1>
+            <h1 class="alert-title">New Order Received</h1>
             <div class="alert-amount">${totalStr}</div>
           </div>
           
-          <h3 class="section-title">Order Diagnostics</h3>
+          <h3 class="section-title">Order Details</h3>
           <table class="data-table">
             <tr>
-              <td class="data-label">Reference ID</td>
+              <td class="data-label">Order Number</td>
               <td class="data-value">#${orderNum}</td>
             </tr>
             <tr>
-              <td class="data-label">Acquisition Date</td>
-              <td class="data-value">${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString('en-GB')}</td>
+              <td class="data-label">Order Date</td>
+              <td class="data-value">${orderDateStr}</td>
             </tr>
             <tr>
-              <td class="data-label">Payment Gateway</td>
+              <td class="data-label">Payment Method</td>
               <td class="data-value" style="color: #D4AF37; text-transform: uppercase;">${paymentMethod}</td>
             </tr>
           </table>
           
-          <h3 class="section-title">Client Ledger</h3>
+          <h3 class="section-title">Customer Details</h3>
           <table class="data-table">
             <tr>
-              <td class="data-label">Legal Name</td>
+              <td class="data-label">Name</td>
               <td class="data-value">${customerName}</td>
             </tr>
             <tr>
-              <td class="data-label">Correspondence</td>
+              <td class="data-label">Email</td>
               <td class="data-value">${customerEmail}</td>
             </tr>
             <tr>
-              <td class="data-label">Logistics Destination</td>
+              <td class="data-label">Shipping Address</td>
               <td class="data-value">${shippingAddress}</td>
             </tr>
           </table>
           
-          <h3 class="section-title">Manifest</h3>
-          <div style="margin-bottom: 40px;">
+          <h3 class="section-title">Items Ordered</h3>
+          <div style="margin-bottom: 40px; background-color: rgba(255,255,255,0.02); padding: 15px; border-radius: 4px;">
             ${itemsListHtml}
           </div>
           
           <div class="footer">
-            Atelier Engine v2.4.8 &bull; Instant Notification Protocol
+            LashGlaze Order Notification System
           </div>
         </div>
       </body>
@@ -514,21 +523,82 @@ serve(async (req) => {
         })
       }
 
-      const mockItemsHtml = `
-        <div class="order-item">
-          <div class="item-details">
-            <div class="item-name">VOLUME LASH SET</div>
+      const mockItemsHtmlCustomer = `
+        <div class="order-item" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid rgba(228, 213, 196, 0.2);">
+          <div class="item-details" style="display: flex; flex-direction: column; gap: 4px; width: 70%;">
+            <div class="item-name" style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #1A1A1A;">VOLUME LASH SET</div>
+            <div class="item-qty" style="font-size: 11px; color: #9A9187; margin-top: 2px;">
+              Quantity: <span style="font-weight: 600; color: #1A1A1A;">1</span>
+            </div>
           </div>
-          <div class="item-price">1 x ${currency}41.95</div>
+          <div class="item-price" style="font-size: 13px; font-weight: 700; color: #D4AF37; width: 30%; text-align: right; white-space: nowrap;">
+            ${currency}41.95
+          </div>
+        </div>
+      `
+
+      const mockItemsHtmlOwner = `
+        <div class="item-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #F2F2F3; font-size: 12px;">VOLUME LASH SET</span>
+            <span style="color: #9A9187; font-size: 11px;">
+              Quantity: <span style="color: #F2F2F3; font-weight: 600;">1</span>
+            </span>
+          </div>
+          <span style="color: #D4AF37; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">
+            ${currency}41.95
+          </span>
         </div>
       `
       
-      const testSubject = testType === 'customer' ? 'LashGlaze Order Confirmation [TEST]' : 'New LashGlaze Order Alert [TEST]'
+      let testSubject = testType === 'customer' ? 'LashGlaze Order Confirmation [TEST]' : 'New LashGlaze Order [TEST]'
       const sender = testType === 'customer' ? fromCustomer : fromOwner
       const recipient = testType === 'customer' ? testEmail : (toOwner || testEmail)
-      const htmlBody = testType === 'customer'
-        ? getCustomerTemplate('Test Customer', '9999', mockItemsHtml, `${currency}41.95`, '123 Atelier Way, London, EC1A 1BB')
-        : getOwnerTemplate('Test Customer', 'test@lashglaze.com', '9999', mockItemsHtml, `${currency}41.95`, '123 Atelier Way, London, EC1A 1BB', 'Manual/Test')
+      
+      const formattedDate = new Date().toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'medium', timeStyle: 'short' })
+      let htmlBody = ''
+
+      if (testType === 'customer') {
+        if (customerDbTemplate) {
+          testSubject = customerDbTemplate.subject
+            .replace(/\{\{order_number\}\}/g, '9999')
+            .replace(/\{\{customer_name\}\}/g, 'Test Customer')
+            .replace(/\{\{order_total\}\}/g, `${currency}41.95`)
+          
+          htmlBody = customerDbTemplate.body_html
+            .replace(/\{\{order_number\}\}/g, '9999')
+            .replace(/\{\{customer_name\}\}/g, 'Test Customer')
+            .replace(/\{\{customer_email\}\}/g, testEmail)
+            .replace(/\{\{order_items\}\}/g, mockItemsHtmlCustomer)
+            .replace(/\{\{order_total\}\}/g, `${currency}41.95`)
+            .replace(/\{\{shipping_address\}\}/g, '123 Atelier Way, London, EC1A 1BB')
+            .replace(/\{\{payment_method\}\}/g, 'Manual/Test')
+            .replace(/\{\{order_date\}\}/g, formattedDate)
+            .replace(/\{\{date\}\}/g, formattedDate)
+        } else {
+          htmlBody = getCustomerTemplate('Test Customer', '9999', mockItemsHtmlCustomer, `${currency}41.95`, '123 Atelier Way, London, EC1A 1BB')
+        }
+      } else {
+        if (ownerDbTemplate) {
+          testSubject = ownerDbTemplate.subject
+            .replace(/\{\{order_number\}\}/g, '9999')
+            .replace(/\{\{customer_name\}\}/g, 'Test Customer')
+            .replace(/\{\{order_total\}\}/g, `${currency}41.95`)
+          
+          htmlBody = ownerDbTemplate.body_html
+            .replace(/\{\{order_number\}\}/g, '9999')
+            .replace(/\{\{customer_name\}\}/g, 'Test Customer')
+            .replace(/\{\{customer_email\}\}/g, 'test@lashglaze.com')
+            .replace(/\{\{order_items\}\}/g, mockItemsHtmlOwner)
+            .replace(/\{\{order_total\}\}/g, `${currency}41.95`)
+            .replace(/\{\{shipping_address\}\}/g, '123 Atelier Way, London, EC1A 1BB')
+            .replace(/\{\{payment_method\}\}/g, 'Manual/Test')
+            .replace(/\{\{order_date\}\}/g, formattedDate)
+            .replace(/\{\{date\}\}/g, formattedDate)
+        } else {
+          htmlBody = getOwnerTemplate('Test Customer', 'test@lashglaze.com', '9999', mockItemsHtmlOwner, `${currency}41.95`, '123 Atelier Way, London, EC1A 1BB', 'Manual/Test', formattedDate)
+        }
+      }
 
       try {
         await transporter.sendMail({
@@ -560,7 +630,7 @@ serve(async (req) => {
     const processOrder = async (order: any) => {
       const formattedNum = (order.order_number || order.orderNumber || 1000).toString()
       const paymentMethodStr = order.stripe_payment_intent_id ? 'Stripe' : order.paypal_order_id ? 'PayPal' : 'Manual/Test'
-      const totalAmountStr = `${currency}${order.total}`
+      const totalAmountStr = `${currency}${Number(order.total).toFixed(2)}`
       
       // Parse address
       const addressParts = [
@@ -578,40 +648,59 @@ serve(async (req) => {
 
       if (order.order_items && order.order_items.length > 0) {
         for (const item of order.order_items) {
-          const prodName = item.products?.name || 'Editorial Lash Set'
-          const itemPrice = `${currency}${item.price}`
+          const prodName = item.products?.name || 'Lash Set'
+          const itemPrice = `${currency}${Number(item.price).toFixed(2)}`
+          const lineTotal = `${currency}${(Number(item.price) * item.quantity).toFixed(2)}`
           
           customerItemsHtml += `
-            <div class="order-item">
-              <div class="item-details">
-                <div class="item-name">${prodName}</div>
-                <div class="item-qty">Quantity: ${item.quantity}</div>
+            <div class="order-item" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid rgba(228, 213, 196, 0.2);">
+              <div class="item-details" style="display: flex; flex-direction: column; gap: 4px; width: 70%;">
+                <div class="item-name" style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #1A1A1A;">${prodName}</div>
+                <div class="item-qty" style="font-size: 11px; color: #9A9187; margin-top: 2px;">
+                  Quantity: <span style="font-weight: 600; color: #1A1A1A;">${item.quantity}</span>
+                  ${item.quantity > 1 ? ` <span style="color: #c4b5a5; margin: 0 6px;">|</span> Unit Price: <span style="font-weight: 600; color: #1A1A1A;">${itemPrice}</span>` : ''}
+                </div>
               </div>
-              <div class="item-price">${item.quantity} x ${itemPrice}</div>
+              <div class="item-price" style="font-size: 13px; font-weight: 700; color: #D4AF37; width: 30%; text-align: right; white-space: nowrap;">
+                ${lineTotal}
+              </div>
             </div>
-            <div class="divider"></div>
           `
 
           ownerItemsHtml += `
-            <div class="item-row">
-              <span style="font-weight:600;text-transform:uppercase;">${prodName} x ${item.quantity}</span>
-              <span style="color:#D4AF37;">${item.quantity} x ${itemPrice}</span>
+            <div class="item-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <span style="font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #F2F2F3; font-size: 12px;">${prodName}</span>
+                <span style="color: #9A9187; font-size: 11px;">
+                  Quantity: <span style="color: #F2F2F3; font-weight: 600;">${item.quantity}</span>
+                  ${item.quantity > 1 ? ` <span style="color: #444; margin: 0 6px;">|</span> Unit Price: <span style="color: #F2F2F3; font-weight: 600;">${itemPrice}</span>` : ''}
+                </span>
+              </div>
+              <span style="color: #D4AF37; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">
+                ${lineTotal}
+              </span>
             </div>
           `
         }
       } else {
         customerItemsHtml = `
-          <div class="order-item">
-            <div class="item-details">
-              <div class="item-name">Custom Lash Assets</div>
+          <div class="order-item" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 0; border-bottom: 1px solid rgba(228, 213, 196, 0.2);">
+            <div class="item-details" style="display: flex; flex-direction: column; gap: 4px; width: 70%;">
+              <div class="item-name" style="font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #1A1A1A;">Custom Order</div>
             </div>
-            <div class="item-price">${totalAmountStr}</div>
+            <div class="item-price" style="font-size: 13px; font-weight: 700; color: #D4AF37; width: 30%; text-align: right; white-space: nowrap;">
+              ${totalAmountStr}
+            </div>
           </div>
         `
         ownerItemsHtml = `
-          <div class="item-row">
-            <span>Custom Order Total</span>
-            <span>${totalAmountStr}</span>
+          <div class="item-row" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #F2F2F3; font-size: 12px;">Custom Order Total</span>
+            </div>
+            <span style="color: #D4AF37; font-weight: 700; font-size: 12px; text-align: right; white-space: nowrap;">
+              ${totalAmountStr}
+            </span>
           </div>
         `
       }
@@ -620,21 +709,45 @@ serve(async (req) => {
       let ownerSent = order.owner_email_sent
       let errorOccurred = null
 
+      const orderDate = order.created_at ? new Date(order.created_at) : new Date()
+      const formattedDate = orderDate.toLocaleString('en-GB', { timeZone: 'Europe/London', dateStyle: 'medium', timeStyle: 'short' })
+
       // Send to Customer
       if (!customerSent && order.customer_email) {
         try {
-          const customerHtml = getCustomerTemplate(
-            order.customer_name || 'Valued Client',
-            formattedNum,
-            customerItemsHtml,
-            totalAmountStr,
-            addressHtml
-          )
+          let customerHtml = ''
+          let customerSubject = `Your LashGlaze Order Confirmation #${formattedNum}`
+
+          if (customerDbTemplate) {
+            customerSubject = customerDbTemplate.subject
+              .replace(/\{\{order_number\}\}/g, formattedNum)
+              .replace(/\{\{customer_name\}\}/g, order.customer_name || 'Valued Client')
+              .replace(/\{\{order_total\}\}/g, totalAmountStr)
+
+            customerHtml = customerDbTemplate.body_html
+              .replace(/\{\{order_number\}\}/g, formattedNum)
+              .replace(/\{\{customer_name\}\}/g, order.customer_name || 'Valued Client')
+              .replace(/\{\{customer_email\}\}/g, order.customer_email || '')
+              .replace(/\{\{order_items\}\}/g, customerItemsHtml)
+              .replace(/\{\{order_total\}\}/g, totalAmountStr)
+              .replace(/\{\{shipping_address\}\}/g, addressHtml)
+              .replace(/\{\{payment_method\}\}/g, paymentMethodStr)
+              .replace(/\{\{order_date\}\}/g, formattedDate)
+              .replace(/\{\{date\}\}/g, formattedDate)
+          } else {
+            customerHtml = getCustomerTemplate(
+              order.customer_name || 'Valued Client',
+              formattedNum,
+              customerItemsHtml,
+              totalAmountStr,
+              addressHtml
+            )
+          }
 
           await transporter.sendMail({
             from: `LashGlaze <${fromCustomer}>`,
             to: order.customer_email,
-            subject: `Your LashGlaze Order Confirmation #${formattedNum}`,
+            subject: customerSubject,
             html: customerHtml
           })
 
@@ -652,20 +765,42 @@ serve(async (req) => {
       // Send to Owner
       if (!ownerSent) {
         try {
-          const ownerHtml = getOwnerTemplate(
-            order.customer_name || 'Anonymous',
-            order.customer_email || 'No email',
-            formattedNum,
-            ownerItemsHtml,
-            totalAmountStr,
-            addressStr,
-            paymentMethodStr
-          )
+          let ownerHtml = ''
+          let ownerSubject = `NEW ORDER ALERT - #${formattedNum} - ${totalAmountStr}`
+
+          if (ownerDbTemplate) {
+            ownerSubject = ownerDbTemplate.subject
+              .replace(/\{\{order_number\}\}/g, formattedNum)
+              .replace(/\{\{customer_name\}\}/g, order.customer_name || 'Anonymous')
+              .replace(/\{\{order_total\}\}/g, totalAmountStr)
+
+            ownerHtml = ownerDbTemplate.body_html
+              .replace(/\{\{order_number\}\}/g, formattedNum)
+              .replace(/\{\{customer_name\}\}/g, order.customer_name || 'Anonymous')
+              .replace(/\{\{customer_email\}\}/g, order.customer_email || 'No email')
+              .replace(/\{\{order_items\}\}/g, ownerItemsHtml)
+              .replace(/\{\{order_total\}\}/g, totalAmountStr)
+              .replace(/\{\{shipping_address\}\}/g, addressStr)
+              .replace(/\{\{payment_method\}\}/g, paymentMethodStr)
+              .replace(/\{\{order_date\}\}/g, formattedDate)
+              .replace(/\{\{date\}\}/g, formattedDate)
+          } else {
+            ownerHtml = getOwnerTemplate(
+              order.customer_name || 'Anonymous',
+              order.customer_email || 'No email',
+              formattedNum,
+              ownerItemsHtml,
+              totalAmountStr,
+              addressStr,
+              paymentMethodStr,
+              formattedDate
+            )
+          }
 
           await transporter.sendMail({
             from: `LashGlaze Atelier <${fromOwner}>`,
             to: toOwner,
-            subject: `NEW ORDER ALERT - #${formattedNum} - ${totalAmountStr}`,
+            subject: ownerSubject,
             html: ownerHtml
           })
 

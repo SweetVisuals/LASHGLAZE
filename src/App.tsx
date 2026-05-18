@@ -18,11 +18,16 @@ import { StaticPage } from './pages/StaticPage';
 import { ScrollToTop } from './components/ScrollToTop';
 
 import Profile from './pages/Profile';
+import { captureUTMs } from './utils/utm';
 
 function AppContent() {
   const { isAdmin, isInitialLoading, policies } = useApp();
   const navigate = useNavigate();
   const location = useLocation();
+
+  React.useEffect(() => {
+    captureUTMs();
+  }, [location.search]);
 
   const renderPolicyContent = (type: string, fallback: string) => {
     const policy = policies.find(p => p.type === type && p.published);

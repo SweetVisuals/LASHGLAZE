@@ -57,7 +57,7 @@ const PIE_DATA = [
   { name: 'Accessories', value: 200 },
 ];
 
-type Tab = 'overview' | 'products' | 'orders' | 'payment' | 'design' | 'customers' | 'settings' | 'emails';
+type Tab = 'overview' | 'products' | 'orders' | 'payment' | 'design' | 'customers' | 'settings' | 'emails' | 'analytics';
 
 export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNavigateBack }) => {
   const { 
@@ -133,6 +133,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
     { id: 'policies', label: 'Policies', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
     { id: 'emails', label: 'Emails', icon: Mail },
+    { id: 'analytics', label: 'Ads Analytics', icon: Activity },
   ];
 
 
@@ -269,6 +270,7 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
               {activeTab === 'policies' && <PoliciesTab />}
               {activeTab === 'settings' && <SettingsTab />}
               {activeTab === 'emails' && <EmailWizardTab />}
+              {activeTab === 'analytics' && <AdsAnalyticsTab orders={orders} />}
             </motion.div>
           </AnimatePresence>
         </div>
@@ -2824,23 +2826,17 @@ const DesignTab = () => {
                <div className="flex justify-between items-center">
                  <h3 className="text-xs uppercase tracking-[0.4em] font-bold text-gold/60">Customer Showcase</h3>
                  <button 
-                   onClick={() => saveShowcaseReview({ id: `new-${Date.now()}`, imageUrl: '', username: '' })}
+                   onClick={() => saveShowcaseReview({ id: `new-${Date.now()}`, imageUrl: '', username: 'Showcase Image', rating: 5, destinationUrl: '' })}
                    className="px-4 py-2 bg-accent/20 text-[10px] font-bold uppercase tracking-widest text-ink hover:bg-accent/30 transition-colors"
                  >
-                   Add Review
+                   Add Showcase Image
                  </button>
                </div>
                <div className="space-y-6">
                   {showcaseReviews.map(review => (
                     <div key={review.id} className="p-4 bg-accent/10 space-y-4">
                        <div className="flex justify-between items-center">
-                          <input 
-                            type="text" 
-                            value={review.username}
-                            onChange={(e) => saveShowcaseReview({ ...review, username: e.target.value })}
-                            placeholder="Username"
-                            className="bg-transparent text-[12px] font-bold tracking-widest text-ink outline-none"
-                          />
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-muted">Showcase Image Item</span>
                           <button 
                             onClick={() => deleteShowcaseReview(review.id)}
                             className="text-[10px] uppercase text-red-500 font-bold tracking-widest"
@@ -2848,28 +2844,27 @@ const DesignTab = () => {
                             Delete
                           </button>
                        </div>
-                       <input 
-                         type="text" 
-                         value={review.imageUrl}
-                         onChange={(e) => saveShowcaseReview({ ...review, imageUrl: e.target.value })}
-                         placeholder="Image URL"
-                         className="w-full bg-paper p-3 text-[10px] font-mono outline-none"
-                       />
-                       <textarea 
-                         value={review.reviewText || ''}
-                         onChange={(e) => saveShowcaseReview({ ...review, reviewText: e.target.value })}
-                         placeholder="Review Text"
-                         className="w-full bg-paper p-3 text-[10px] outline-none min-h-[60px]"
-                       />
-                       <div className="flex items-center gap-2">
-                         <span className="text-[10px] uppercase tracking-widest font-bold text-muted">Rating:</span>
-                         <input 
-                           type="number" 
-                           min="1" max="5" 
-                           value={review.rating || 5}
-                           onChange={(e) => saveShowcaseReview({ ...review, rating: parseInt(e.target.value) })}
-                           className="bg-paper p-2 w-16 text-[10px] outline-none"
-                         />
+                       
+                       <div className="space-y-2">
+                          <p className="text-[9px] uppercase text-muted font-bold tracking-wider">Image URL</p>
+                          <input 
+                            type="text" 
+                            value={review.imageUrl || review.image_url || ''}
+                            onChange={(e) => saveShowcaseReview({ ...review, imageUrl: e.target.value, image_url: e.target.value })}
+                            placeholder="https://..."
+                            className="w-full bg-paper p-3 text-[10px] font-mono outline-none"
+                          />
+                       </div>
+
+                       <div className="space-y-2">
+                          <p className="text-[9px] uppercase text-muted font-bold tracking-wider">Click Destination URL (Link)</p>
+                          <input 
+                            type="text" 
+                            value={review.destinationUrl || review.destination_url || ''}
+                            onChange={(e) => saveShowcaseReview({ ...review, destinationUrl: e.target.value, destination_url: e.target.value })}
+                            placeholder="e.g. https://instagram.com/lashglaze or product page link"
+                            className="w-full bg-paper p-3 text-[10px] font-mono outline-none"
+                          />
                        </div>
                     </div>
                   ))}
@@ -3436,6 +3431,116 @@ const SettingsTab = () => {
              {saving ? "Saving Parameters..." : "Deploy Global Changes"}
           </button>
        </div>
+    </div>
+  );
+};
+
+const AdsAnalyticsTab = ({ orders }: { orders: any[] }) => {
+  const { formatPrice, storeSettings } = useApp();
+  
+  // Aggregate data by UTM Campaign
+  const campaignData: Record<string, { source: string, medium: string, orders: number, revenue: number }> = {};
+  
+  let totalAttributedRevenue = 0;
+  let totalAttributedOrders = 0;
+
+  orders.forEach(order => {
+    const campaign = order.utmCampaign || order.utm_campaign;
+    const source = order.utmSource || order.utm_source;
+    const medium = order.utmMedium || order.utm_medium;
+
+    if (campaign || source || medium) {
+      const key = campaign || source || 'unknown_campaign';
+      if (!campaignData[key]) {
+        campaignData[key] = {
+          source: source || 'unknown',
+          medium: medium || 'unknown',
+          orders: 0,
+          revenue: 0
+        };
+      }
+      campaignData[key].orders += 1;
+      campaignData[key].revenue += order.total;
+      
+      totalAttributedOrders += 1;
+      totalAttributedRevenue += order.total;
+    }
+  });
+
+  const campaigns = Object.entries(campaignData).map(([name, data]) => ({
+    name,
+    ...data
+  })).sort((a, b) => b.revenue - a.revenue);
+
+  return (
+    <div className="space-y-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-accent/10 p-8 rounded-none shadow-inner gap-6 border-l-4 border-gold">
+         <div>
+            <h1 className="text-2xl font-sans font-bold mb-1 tracking-tight">Ads Analytics</h1>
+            <p className="text-muted text-[10px] uppercase tracking-[0.2em] font-bold">UTM Campaign Performance Tracking</p>
+         </div>
+      </div>
+
+      {/* Overview Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="bg-paper p-8 rounded-none shadow-sm flex flex-col justify-center items-center text-center">
+          <Activity size={24} className="text-gold mb-4" />
+          <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted mb-2">Tracked Campaigns</p>
+          <p className="text-3xl font-sans font-bold text-ink tracking-tight">{campaigns.length}</p>
+        </div>
+        <div className="bg-paper p-8 rounded-none shadow-sm flex flex-col justify-center items-center text-center">
+          <ShoppingCart size={24} className="text-gold mb-4" />
+          <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted mb-2">Attributed Orders</p>
+          <p className="text-3xl font-sans font-bold text-ink tracking-tight">{totalAttributedOrders}</p>
+        </div>
+        <div className="bg-paper p-8 rounded-none shadow-sm flex flex-col justify-center items-center text-center">
+          <DollarSign size={24} className="text-gold mb-4" />
+          <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-muted mb-2">Attributed Revenue</p>
+          <p className="text-3xl font-sans font-bold text-ink tracking-tight">{formatPrice(totalAttributedRevenue)}</p>
+        </div>
+      </div>
+
+      {/* Campaigns Table */}
+      <div className="bg-paper rounded-none shadow-xl overflow-hidden">
+        <div className="p-6 border-b border-accent/10 flex justify-between items-center bg-accent/5">
+          <h3 className="text-xs uppercase tracking-[0.3em] font-bold flex items-center gap-3">
+            <Tag size={16} className="text-gold" />
+            Campaign Ledger
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-accent/5 text-[10px] uppercase tracking-widest text-muted border-b border-white/5">
+                <th className="p-4 font-bold">Campaign</th>
+                <th className="p-4 font-bold">Source</th>
+                <th className="p-4 font-bold">Medium</th>
+                <th className="p-4 font-bold text-right">Orders</th>
+                <th className="p-4 font-bold text-right">Revenue</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/5 font-sans">
+              {campaigns.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="p-8 text-center text-muted text-[10px] uppercase tracking-widest font-bold">
+                    No campaign data available yet.
+                  </td>
+                </tr>
+              ) : (
+                campaigns.map((camp, idx) => (
+                  <tr key={idx} className="hover:bg-white/[0.02] transition-colors group">
+                    <td className="p-4 text-xs font-bold text-ink group-hover:text-gold transition-colors">{camp.name}</td>
+                    <td className="p-4 text-xs text-muted">{camp.source}</td>
+                    <td className="p-4 text-xs text-muted">{camp.medium}</td>
+                    <td className="p-4 text-xs font-bold text-right">{camp.orders}</td>
+                    <td className="p-4 text-xs font-bold text-right text-gold">{formatPrice(camp.revenue)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 };

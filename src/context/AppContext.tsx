@@ -10,7 +10,7 @@ import { INITIAL_PRODUCTS, INITIAL_SETTINGS } from '../data';
 import { supabase } from '../supabase';
 import { Database } from '../types/database';
 import { formatPrice as formatPriceUtil } from '../utils/format';
-
+import { getUTMs, clearUTMs } from '../utils/utm';
 interface CartItem extends Product {
   quantity: number;
 }
@@ -326,10 +326,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setShowcaseReviews(reviewsData.map(r => ({
              id: r.id,
              image_url: r.image_url,
+             imageUrl: r.image_url,
              username: r.username,
              review_text: r.review_text,
+             reviewText: r.review_text,
              rating: r.rating,
-             created_at: r.created_at
+             destination_url: r.destination_url,
+             destinationUrl: r.destination_url,
+             created_at: r.created_at,
+             createdAt: r.created_at
           })));
         }
 
@@ -387,6 +392,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             .select(`
               id, profile_id, customer_name, customer_email, total, status, created_at, order_number,
               stripe_payment_intent_id, paypal_order_id, payment_method_id, paypal_email,
+              utm_source, utm_medium, utm_campaign,
               order_items ( product_id, quantity, price )
             `)
             .order('created_at', { ascending: false });
@@ -411,6 +417,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               shippingPostalCode: o.shipping_postal_code,
               shippingCountry: o.shipping_country,
               trackingNumber: o.tracking_number,
+              utmSource: o.utm_source,
+              utmMedium: o.utm_medium,
+              utmCampaign: o.utm_campaign,
               items: (o as any).order_items?.map((i: any) => ({
                 productId: i.product_id,
                 quantity: i.quantity,
@@ -441,6 +450,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               id, profile_id, customer_name, customer_email, total, status, created_at, order_number,
               stripe_payment_intent_id, paypal_order_id, payment_method_id, paypal_email,
               shipping_address, shipping_city, shipping_postal_code, shipping_country, tracking_number,
+              utm_source, utm_medium, utm_campaign,
               order_items ( product_id, quantity, price )
             `)
             .eq('profile_id', user.id)
@@ -465,6 +475,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
               shippingPostalCode: o.shipping_postal_code,
               shippingCountry: o.shipping_country,
               trackingNumber: o.tracking_number,
+              utmSource: o.utm_source,
+              utmMedium: o.utm_medium,
+              utmCampaign: o.utm_campaign,
               items: (o as any).order_items?.map((i: any) => ({
                 productId: i.product_id,
                 quantity: i.quantity,
@@ -657,10 +670,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     try {
       const isNew = review.id.startsWith('new-');
       const payload = {
-        image_url: review.imageUrl,
-        username: review.username,
-        review_text: review.reviewText,
-        rating: review.rating
+        image_url: review.image_url || review.imageUrl || '',
+        username: review.username || '',
+        review_text: review.review_text || review.reviewText || '',
+        rating: review.rating || 5,
+        destination_url: review.destination_url || review.destinationUrl || ''
       };
       
       let data, error;
@@ -685,10 +699,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const newReview: ShowcaseReview = {
         id: data.id,
         imageUrl: data.image_url,
+        image_url: data.image_url,
         username: data.username,
         reviewText: data.review_text,
+        review_text: data.review_text,
         rating: data.rating,
-        createdAt: data.created_at
+        destinationUrl: data.destination_url,
+        destination_url: data.destination_url,
+        createdAt: data.created_at,
+        created_at: data.created_at
       };
 
       setShowcaseReviews(prev => 
@@ -1014,6 +1033,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     paypal_email?: string
   }) => {
     try {
+      const utms = getUTMs();
+      
       // 1. Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
@@ -1030,7 +1051,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           shipping_address: orderData.shipping_address,
           shipping_city: orderData.shipping_city,
           shipping_postal_code: orderData.shipping_postal_code,
-          shipping_country: orderData.shipping_country
+          shipping_country: orderData.shipping_country,
+          utm_source: utms?.utm_source,
+          utm_medium: utms?.utm_medium,
+          utm_campaign: utms?.utm_campaign
         })
         .select()
         .single();
@@ -1088,6 +1112,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
                 .eq('id', product.id);
           }
       }
+
+      clearUTMs(); // Clear after successful order
 
       return newOrder;
     } catch (error) {

@@ -95,41 +95,58 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
         </div>
       </section>
 
-      {/* Review Gallery Showcase */}
+      {/* Customer Picture Showcase */}
       {showcaseReviews && showcaseReviews.length > 0 && (
         <section className="w-full py-24 bg-paper relative overflow-hidden">
           <div className="max-w-7xl mx-auto px-4 md:px-8">
              <div className="flex flex-col items-center mb-16 text-center">
                <h2 className="font-serif text-4xl md:text-5xl text-ink italic mb-4 tracking-tight">Customer Showcase</h2>
-               <p className="text-[10px] text-muted uppercase tracking-[0.5em] font-bold opacity-80">Customer Reviews</p>
+               <p className="text-[10px] text-muted uppercase tracking-[0.5em] font-bold opacity-80">Curated Looks</p>
              </div>
              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8">
-               {showcaseReviews.map((review, idx) => (
-                 <motion.div 
-                   key={review.id}
-                   initial={{ opacity: 0, y: 30 }}
-                   whileInView={{ opacity: 1, y: 0 }}
-                   transition={{ delay: idx * 0.15, duration: 0.8 }}
-                   viewport={{ once: true }}
-                   className="group relative aspect-[3/4] overflow-hidden bg-accent/10"
-                 >
-                    <img 
-                      src={review.image_url} 
-                      alt={`Showcase by ${review.username}`} 
-                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-ink/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex flex-col justify-end p-6">
-                       <p className="text-white text-[11px] font-bold uppercase tracking-widest mb-2">{review.username}</p>
-                       <p className="text-white/80 text-[10px] italic font-serif leading-relaxed line-clamp-3">"{review.review_text}"</p>
-                       <div className="flex gap-1 mt-3">
-                         {[...Array(review.rating || 5)].map((_, i) => (
-                           <span key={i} className="text-gold text-[8px]">★</span>
-                         ))}
-                       </div>
-                    </div>
-                 </motion.div>
-               ))}
+               {showcaseReviews.map((review, idx) => {
+                 const imageUrl = review.imageUrl || review.image_url;
+                 const linkUrl = review.destinationUrl || review.destination_url;
+                 
+                 const imageElement = (
+                   <motion.div 
+                     initial={{ opacity: 0, y: 30 }}
+                     whileInView={{ opacity: 1, y: 0 }}
+                     transition={{ delay: idx * 0.15, duration: 0.8 }}
+                     viewport={{ once: true }}
+                     className="group relative aspect-[3/4] overflow-hidden bg-accent/10 cursor-pointer"
+                   >
+                      <img 
+                        src={imageUrl} 
+                        alt="Customer Showcase Selection" 
+                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-ink/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                   </motion.div>
+                 );
+
+                 if (linkUrl) {
+                   const isExternal = linkUrl.startsWith('http') || linkUrl.startsWith('//');
+                   return (
+                     <a 
+                       key={review.id} 
+                       href={linkUrl} 
+                       target={isExternal ? "_blank" : undefined}
+                       rel={isExternal ? "noopener noreferrer" : undefined}
+                       className="block"
+                     >
+                       {imageElement}
+                     </a>
+                   );
+                 }
+
+                 return (
+                   <div key={review.id} className="block">
+                     {imageElement}
+                   </div>
+                 );
+               })}
              </div>
           </div>
         </section>

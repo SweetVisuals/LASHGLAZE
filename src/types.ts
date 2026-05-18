@@ -49,6 +49,9 @@ export interface Order {
   paypalEmail?: string;
   customerEmailSent?: boolean;
   ownerEmailSent?: boolean;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 export interface Customer {
@@ -169,10 +172,15 @@ export interface Subscription {
 
 export interface ShowcaseReview {
   id: string;
-  image_url: string;
+  image_url?: string;
+  imageUrl?: string;
   username: string;
   review_text?: string;
+  reviewText?: string;
   rating: number;
+  destination_url?: string;
+  destinationUrl?: string;
   created_at?: string;
+  createdAt?: string;
 }
 
