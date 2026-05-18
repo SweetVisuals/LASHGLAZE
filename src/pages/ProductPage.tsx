@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
-import { Minus, Plus, Share2, Info, ChevronLeft, Clock, ShieldCheck, Truck, Sparkles } from 'lucide-react';
+import { Minus, Plus, Share2, Info, ChevronLeft, Clock, ShieldCheck, Truck, Sparkles, Lock } from 'lucide-react';
 import { CountdownTimer } from '../components/CountdownTimer';
 
 interface ProductPageProps {
@@ -134,7 +134,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
                     )}
                     {isLimitedTimeActive && (
                        <span 
-                         className="lg:ml-4 mt-2 lg:mt-0 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg animate-pulse w-fit border-none"
+                         className="lg:ml-auto mt-2 lg:mt-0 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg animate-pulse w-fit border-none"
                          style={{ backgroundColor: storeSettings.colors.limitedTime }}
                        >
                          Limited Time
@@ -270,34 +270,118 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
 
                {/* Action */}
                <div className="space-y-6 pt-6">
-                  <div className="flex gap-4">
-                  <div className="flex items-center px-4 font-bold text-sm bg-accent/5 rounded-none shadow-inner">
-                     <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="hover:opacity-40 transition-opacity">－</button>
-                     <span className="w-8 text-center text-xs">{quantity}</span>
-                     <button onClick={() => setQuantity(quantity + 1)} className="hover:opacity-40 transition-opacity">＋</button>
+                  {/* Row 1: Quantity Selector */}
+                  <div className="flex items-center justify-between p-4 bg-accent/5 rounded-none shadow-inner w-full border-none">
+                     <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-muted border-none">Quantity</span>
+                     <div className="flex items-center gap-6 font-bold text-sm border-none">
+                        <button onClick={() => setQuantity(Math.max(1, quantity - 1))} className="hover:opacity-40 transition-opacity p-1 border-none">－</button>
+                        <span className="w-8 text-center text-xs font-extrabold border-none">{quantity}</span>
+                        <button onClick={() => setQuantity(quantity + 1)} className="hover:opacity-40 transition-opacity p-1 border-none">＋</button>
+                     </div>
                   </div>
-                    <button 
-                      disabled={!isAvailable}
-                      onClick={() => {
-                        if (isAvailable) {
-                          addToCart(product, quantity, selectedColor, selectedSize, selectedStyle);
-                          onCheckout();
-                        }
-                      }}
-                      className={`flex-grow py-5 text-[10px] font-extrabold uppercase tracking-[0.4em] transition-all relative overflow-hidden group rounded-none shadow-xl ${
-                        isAvailable
-                          ? 'bg-ink text-paper hover:bg-gold hover:text-ink shadow-lg shadow-gold/10' 
-                          : 'bg-black/5 text-muted cursor-not-allowed'
-                      }`}
-                    >
-                      <span className="relative z-10">
-                        {isPreOrderActive 
-                          ? 'Pre-order now' 
-                          : isReserveOrder 
-                            ? 'Reserve order' 
-                            : isAvailable ? 'Add to cart' : 'Sold Out'}
-                      </span>
-                    </button>
+
+                  {/* Row 2: Add to Cart Button */}
+                  <button 
+                     disabled={!isAvailable}
+                     onClick={() => {
+                       if (isAvailable) {
+                         addToCart(product, quantity, selectedColor, selectedSize, selectedStyle);
+                         onCheckout();
+                       }
+                     }}
+                     className={`w-full py-5 text-[10px] font-extrabold uppercase tracking-[0.4em] transition-all relative overflow-hidden group rounded-none shadow-xl ${
+                       isAvailable
+                         ? 'bg-ink text-paper hover:bg-gold hover:text-ink shadow-lg shadow-gold/10' 
+                         : 'bg-black/5 text-muted cursor-not-allowed'
+                     }`}
+                  >
+                     <span className="relative z-10 border-none">
+                       {isPreOrderActive 
+                         ? 'Pre-order now' 
+                         : isReserveOrder 
+                           ? 'Reserve order' 
+                           : isAvailable ? 'Add to cart' : 'Sold Out'}
+                     </span>
+                  </button>
+
+                  {/* Trust & Payment Security Badges */}
+                  <div className="pt-2 space-y-4 border-none">
+                    {/* Security Message */}
+                    <div className="flex items-center justify-center lg:justify-start gap-2 text-[9px] font-extrabold uppercase tracking-[0.25em] text-muted border-none">
+                      <Lock size={12} className="text-gold" />
+                      <span>Guaranteed Safe & SSL Encrypted Checkout</span>
+                    </div>
+
+                    {/* Payment Logos Row */}
+                    <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-3 pt-0.5 border-none">
+                      {/* Stripe */}
+                      <img 
+                        src="/images/stripe.png" 
+                        alt="Stripe" 
+                        className="h-4.5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity duration-300 border-none" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                      />
+
+                      {/* PayPal */}
+                      <img 
+                        src="/images/paypal.png" 
+                        alt="PayPal" 
+                        className="h-4.5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity duration-300 border-none" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                      />
+
+                      {/* Visa */}
+                      <img 
+                        src="/images/visa.png" 
+                        alt="Visa" 
+                        className="h-4.5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity duration-300 border-none" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                      />
+
+                      {/* Mastercard */}
+                      <img 
+                        src="/images/mastercard.png" 
+                        alt="Mastercard" 
+                        className="h-4.5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity duration-300 border-none" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                      />
+
+                      {/* Apple Pay */}
+                      <img 
+                        src="/images/applepay.png" 
+                        alt="Apple Pay" 
+                        className="h-4.5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity duration-300 border-none" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                      />
+
+                      {/* Klarna */}
+                      <img 
+                        src="/images/klarna.png" 
+                        alt="Klarna" 
+                        className="h-4.5 w-auto object-contain opacity-80 hover:opacity-100 transition-opacity duration-300 border-none" 
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }} 
+                      />
+                    </div>
+
+                    {/* Trust assurances info list */}
+                    <div className="grid grid-cols-2 gap-y-2 gap-x-4 pt-1.5 text-[9px] font-bold uppercase tracking-widest text-muted/70 border-none">
+                      <div className="flex items-center gap-1.5 border-none">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gold border-none" />
+                        <span>Instant Delivery</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 border-none">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gold border-none" />
+                        <span>Buyer Protection</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 border-none">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gold border-none" />
+                        <span>Verified Merchant</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 border-none">
+                        <div className="w-1.5 h-1.5 rounded-full bg-gold border-none" />
+                        <span>Zero Hidden Fees</span>
+                      </div>
+                    </div>
                   </div>
                </div>
             </div>

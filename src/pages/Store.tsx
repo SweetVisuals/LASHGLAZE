@@ -191,7 +191,7 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
                      );
                      if (isLimited) return (
                         <div 
-                          className="absolute top-4 left-4 z-10 text-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] shadow-lg animate-pulse border-none"
+                          className="absolute top-4 right-4 z-10 text-white px-3 py-1.5 text-[9px] font-bold uppercase tracking-[0.2em] shadow-lg animate-pulse border-none"
                           style={{ backgroundColor: storeSettings.colors.limitedTime }}
                         >
                           Limited Time

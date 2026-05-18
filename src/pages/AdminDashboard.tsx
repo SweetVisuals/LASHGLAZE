@@ -801,8 +801,10 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
     inventory: initialData?.inventory?.toString() || '100',
     colorVariantsEnabled: !!initialData?.variants?.colors,
     sizeVariantsEnabled: !!initialData?.variants?.sizes,
+    styleVariantsEnabled: !!initialData?.variants?.styles,
     colors: initialData?.variants?.colors || [] as string[],
     sizes: initialData?.variants?.sizes || [] as string[],
+    styles: initialData?.variants?.styles || [] as string[],
     preOrderEnabled: initialData?.preOrderEnabled || false,
     preOrderEndsAt: initialData?.preOrderEndsAt ? new Date(initialData.preOrderEndsAt).toISOString().slice(0, 16) : '',
     preOrderPrice: initialData?.preOrderPrice?.toString() || '',
@@ -813,12 +815,55 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
 
   const [newColor, setNewColor] = useState('');
   const [newSize, setNewSize] = useState('');
+  const [newStyle, setNewStyle] = useState('');
   const [newGalleryUrl, setNewGalleryUrl] = useState('');
 
-  const next = () => setStep(s => s + 1);
+  const next = () => {
+    const updated = { ...data };
+    let hasChanged = false;
+
+    if (step === 2) {
+      if (newColor.trim() && !data.colors.includes(newColor.trim())) {
+        updated.colors = [...data.colors, newColor.trim()];
+        setNewColor('');
+        hasChanged = true;
+      }
+      if (newSize.trim() && !data.sizes.includes(newSize.trim())) {
+        updated.sizes = [...data.sizes, newSize.trim()];
+        setNewSize('');
+        hasChanged = true;
+      }
+      if (newStyle.trim() && !data.styles.includes(newStyle.trim())) {
+        updated.styles = [...data.styles, newStyle.trim()];
+        setNewStyle('');
+        hasChanged = true;
+      }
+    }
+
+    if (hasChanged) {
+      setData(updated);
+    }
+    setStep(s => s + 1);
+  };
+
   const back = () => setStep(s => s - 1);
 
   const handleSave = () => {
+    const finalColors = [...data.colors];
+    if (newColor.trim() && !finalColors.includes(newColor.trim())) {
+      finalColors.push(newColor.trim());
+    }
+
+    const finalSizes = [...data.sizes];
+    if (newSize.trim() && !finalSizes.includes(newSize.trim())) {
+      finalSizes.push(newSize.trim());
+    }
+
+    const finalStyles = [...data.styles];
+    if (newStyle.trim() && !finalStyles.includes(newStyle.trim())) {
+      finalStyles.push(newStyle.trim());
+    }
+
     onSave({
       id: data.id || Date.now().toString(),
       name: data.name,
@@ -833,8 +878,9 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
       inventory: parseInt(data.inventory),
       status: initialData?.status || 'active',
       variants: {
-        colors: data.colorVariantsEnabled ? data.colors : undefined,
-        sizes: data.sizeVariantsEnabled ? data.sizes : undefined,
+        colors: data.colorVariantsEnabled ? finalColors : undefined,
+        sizes: data.sizeVariantsEnabled ? finalSizes : undefined,
+        styles: data.styleVariantsEnabled ? finalStyles : undefined,
       },
       preOrderEnabled: data.preOrderEnabled,
       preOrderEndsAt: data.preOrderEndsAt || undefined,
@@ -1017,7 +1063,10 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                     </div>
                     {data.colorVariantsEnabled && (
                        <div className="space-y-3">
-                          <input value={newColor} onChange={e => setNewColor(e.target.value)} onKeyDown={e => e.key === 'Enter' && (setData({...data, colors: [...data.colors, newColor]}), setNewColor(''))} type="text" placeholder="Type and press enter" className="w-full bg-paper  p-2 rounded text-[11px] text-ink focus:border-gold outline-none" />
+                          <div className="flex gap-2">
+                             <input value={newColor} onChange={e => setNewColor(e.target.value)} onKeyDown={e => e.key === 'Enter' && (newColor.trim() && !data.colors.includes(newColor.trim())) && (setData({...data, colors: [...data.colors, newColor.trim()]}), setNewColor(''))} type="text" placeholder="Add color (e.g. Pink)" className="flex-grow bg-paper p-2 rounded text-[11px] text-ink focus:border-gold outline-none" />
+                             <button type="button" onClick={() => { if (newColor.trim() && !data.colors.includes(newColor.trim())) { setData({...data, colors: [...data.colors, newColor.trim()]}); setNewColor(''); } }} className="bg-gold text-paper px-3 rounded font-bold text-[10px] uppercase transition-colors hover:bg-white">+</button>
+                          </div>
                           <div className="flex flex-wrap gap-2">
                              {data.colors.map(c => (
                                <span key={c} className="px-2 py-1 bg-accent/10  text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
@@ -1037,12 +1086,38 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                     </div>
                     {data.sizeVariantsEnabled && (
                        <div className="space-y-3">
-                          <input value={newSize} onChange={e => setNewSize(e.target.value)} onKeyDown={e => e.key === 'Enter' && (setData({...data, sizes: [...data.sizes, newSize]}), setNewSize(''))} type="text" placeholder="Type and press enter" className="w-full bg-paper  p-2 rounded text-[11px] text-ink focus:border-gold outline-none" />
+                          <div className="flex gap-2">
+                             <input value={newSize} onChange={e => setNewSize(e.target.value)} onKeyDown={e => e.key === 'Enter' && (newSize.trim() && !data.sizes.includes(newSize.trim())) && (setData({...data, sizes: [...data.sizes, newSize.trim()]}), setNewSize(''))} type="text" placeholder="Add size (e.g. 14mm)" className="flex-grow bg-paper p-2 rounded text-[11px] text-ink focus:border-gold outline-none" />
+                             <button type="button" onClick={() => { if (newSize.trim() && !data.sizes.includes(newSize.trim())) { setData({...data, sizes: [...data.sizes, newSize.trim()]}); setNewSize(''); } }} className="bg-gold text-paper px-3 rounded font-bold text-[10px] uppercase transition-colors hover:bg-white">+</button>
+                          </div>
                           <div className="flex flex-wrap gap-2">
                              {data.sizes.map(s => (
                                <span key={s} className="px-2 py-1 bg-accent/10  text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
                                   {s}
                                   <button onClick={() => setData({...data, sizes: data.sizes.filter(v => v !== s)})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
+                               </span>
+                             ))}
+                          </div>
+                       </div>
+                    )}
+
+                    <div className="flex items-center justify-between">
+                       <h4 className="text-[10px] uppercase font-bold text-muted">Style Options</h4>
+                       <button onClick={() => setData({...data, styleVariantsEnabled: !data.styleVariantsEnabled})} className={`w-8 h-4 rounded-full relative transition-all ${data.styleVariantsEnabled ? 'bg-gold' : 'bg-accent/10'}`}>
+                          <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${data.styleVariantsEnabled ? 'left-4.5' : 'left-0.5'}`} />
+                       </button>
+                    </div>
+                    {data.styleVariantsEnabled && (
+                       <div className="space-y-3">
+                          <div className="flex gap-2">
+                             <input value={newStyle} onChange={e => setNewStyle(e.target.value)} onKeyDown={e => e.key === 'Enter' && (newStyle.trim() && !data.styles.includes(newStyle.trim())) && (setData({...data, styles: [...data.styles, newStyle.trim()]}), setNewStyle(''))} type="text" placeholder="Add style (e.g. Strips, Clusters)" className="flex-grow bg-paper p-2 rounded text-[11px] text-ink focus:border-gold outline-none" />
+                             <button type="button" onClick={() => { if (newStyle.trim() && !data.styles.includes(newStyle.trim())) { setData({...data, styles: [...data.styles, newStyle.trim()]}); setNewStyle(''); } }} className="bg-gold text-paper px-3 rounded font-bold text-[10px] uppercase transition-colors hover:bg-white">+</button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                             {data.styles.map(st => (
+                               <span key={st} className="px-2 py-1 bg-accent/10  text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
+                                  {st}
+                                  <button onClick={() => setData({...data, styles: data.styles.filter(v => v !== st)})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
                                </span>
                              ))}
                           </div>
@@ -1149,6 +1224,24 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                        <p className="text-[10px] uppercase text-muted font-bold">Colors</p>
                        <div className="flex flex-wrap gap-2">
                           {data.colors.map(c => <span key={c} className="text-[9px] font-bold px-2 py-0.5 bg-accent/10  uppercase">{c}</span>)}
+                       </div>
+                    </div>
+                  )}
+
+                  {data.sizeVariantsEnabled && data.sizes.length > 0 && (
+                    <div className="space-y-1">
+                       <p className="text-[10px] uppercase text-muted font-bold">Sizes</p>
+                       <div className="flex flex-wrap gap-2">
+                          {data.sizes.map(s => <span key={s} className="text-[9px] font-bold px-2 py-0.5 bg-accent/10  uppercase">{s}</span>)}
+                       </div>
+                    </div>
+                  )}
+
+                  {data.styleVariantsEnabled && data.styles.length > 0 && (
+                    <div className="space-y-1">
+                       <p className="text-[10px] uppercase text-muted font-bold">Styles</p>
+                       <div className="flex flex-wrap gap-2">
+                          {data.styles.map(st => <span key={st} className="text-[9px] font-bold px-2 py-0.5 bg-accent/10  uppercase">{st}</span>)}
                        </div>
                     </div>
                   )}
