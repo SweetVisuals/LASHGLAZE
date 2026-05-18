@@ -40,6 +40,11 @@ const StripeCheckoutForm = ({ total, email, currency, onComplete, color, formatP
     setError(null);
     
     try {
+      const { error: submitError } = await elements.submit();
+      if (submitError) {
+        throw new Error(submitError.message);
+      }
+
       const { error: stripeError, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
