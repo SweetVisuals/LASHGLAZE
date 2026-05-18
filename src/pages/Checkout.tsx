@@ -811,10 +811,52 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
               </section>
             )}
 
-            <section id="requirement-agreements" className="space-y-8 bg-accent/5 p-8 shadow-inner">
-               <div className="flex items-center gap-4 mb-2">
-                  <Lock size={14} className="text-muted" />
-                  <h3 className="text-[10px] uppercase tracking-[0.3em] font-bold text-ink">Requirement Agreements</h3>
+            <section 
+              id="requirement-agreements" 
+              className="space-y-8 p-8 shadow-inner transition-colors duration-500 border-none relative overflow-hidden"
+              style={{ 
+                backgroundColor: showError 
+                  ? 'color-mix(in srgb, var(--limitedTime) 12%, transparent)' 
+                  : (agreeTerms && agreeData) 
+                    ? 'rgba(var(--accent-rgb), 0.05)' 
+                    : 'color-mix(in srgb, var(--limitedTime) 6%, transparent)' 
+              }}
+            >
+               <div className="flex items-center gap-4 mb-2 flex-wrap">
+                  <Lock 
+                    size={14} 
+                    className="transition-colors duration-500" 
+                    style={{ 
+                      color: showError 
+                        ? 'var(--limitedTime)' 
+                        : (agreeTerms && agreeData) 
+                          ? 'var(--muted)' 
+                          : 'var(--limitedTime)' 
+                    }} 
+                  />
+                  <h3 
+                    className="text-[10px] uppercase tracking-[0.3em] font-bold transition-colors duration-500"
+                    style={{ 
+                      color: showError 
+                        ? 'var(--limitedTime)' 
+                        : (agreeTerms && agreeData) 
+                          ? 'var(--ink)' 
+                          : 'var(--limitedTime)' 
+                    }}
+                  >
+                    Requirement Agreements
+                  </h3>
+                  {!(agreeTerms && agreeData) && (
+                    <span 
+                      className="text-[8px] uppercase tracking-[0.2em] font-bold animate-pulse px-2 py-0.5 border-none"
+                      style={{ 
+                        backgroundColor: 'var(--limitedTime)',
+                        color: 'var(--paper)'
+                      }}
+                    >
+                      Required
+                    </span>
+                  )}
                </div>
                
                <div className="space-y-8">
@@ -859,11 +901,15 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
 
                {showError && (
                   <motion.div 
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="flex items-center gap-3 text-red-700 text-[10px] font-bold uppercase tracking-widest bg-red-50 p-5 shadow-lg"
+                     initial={{ opacity: 0, x: -10 }}
+                     animate={{ opacity: 1, x: 0 }}
+                     className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest p-5 shadow-lg border-none"
+                     style={{ 
+                       backgroundColor: 'color-mix(in srgb, var(--limitedTime) 15%, transparent)',
+                       color: 'var(--limitedTime)'
+                     }}
                   >
-                     <AlertCircle size={14} /> 
+                     <AlertCircle size={14} style={{ color: 'var(--limitedTime)' }} /> 
                      Please accept all requirement agreements to finalize.
                   </motion.div>
                )}
