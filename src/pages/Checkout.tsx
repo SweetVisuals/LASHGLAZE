@@ -255,7 +255,6 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
   };
 
   const selectedRegion = getSelectedRegion();
-  const shippingPrice = selectedRegion ? selectedRegion.shippingPrice : 0;
 
   // Tax Calculation
   const getTaxRate = () => {
@@ -275,13 +274,18 @@ export const Checkout: React.FC<CheckoutProps> = ({ onBack, onSuccessRedirect })
     } else if (appliedCoupon.discountType === 'fixed') {
        discountAmount = appliedCoupon.discountValue;
     } else if (appliedCoupon.discountType === 'bogo') {
-       // 50% off benefitProductId if requiredProductId is also in cart
+       // Discount on benefitProductId if requiredProductId is also in cart
        const hasRequired = cart.some(item => item.id === appliedCoupon.requiredProductId);
        const benefitItem = cart.find(item => item.id === appliedCoupon.benefitProductId);
        if (hasRequired && benefitItem) {
-          discountAmount = (benefitItem.price * 0.5); // 50% discount on 1 unit of benefit product
+          discountAmount = (benefitItem.price * (appliedCoupon.discountValue / 100));
        }
     }
+  }
+  let shippingPrice = selectedRegion ? selectedRegion.shippingPrice : 0;
+  
+  if (appliedCoupon && appliedCoupon.discountType === 'shipping' && subtotal >= appliedCoupon.minPurchase) {
+      shippingPrice = 0;
   }
 
   const subscriptionDiscount = isSubscription ? (subscriptionInterval === 'fortnightly' ? subtotal * 0.15 : subtotal * 0.10) : 0;

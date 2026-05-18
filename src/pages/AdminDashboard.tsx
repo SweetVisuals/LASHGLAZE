@@ -1966,7 +1966,7 @@ const DiscountWizard = ({ isOpen, onClose, storeSettings, products, onSave }: {
   const [step, setStep] = useState(1);
   const [discountData, setDiscountData] = useState({
     code: '',
-    discountType: 'percentage' as 'percentage' | 'fixed' | 'bogo',
+    discountType: 'percentage' as 'percentage' | 'fixed' | 'bogo' | 'shipping',
     discountValue: '',
     minPurchase: '',
     requiredProductId: '',
@@ -2000,23 +2000,25 @@ const DiscountWizard = ({ isOpen, onClose, storeSettings, products, onSave }: {
                 </div>
                 <div className="grid grid-cols-1 gap-4">
                    <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Benefit Mechanics</label>
-                   <div className="flex bg-accent/10 p-1">
-                      {['percentage', 'fixed', 'bogo'].map(t => (
+                    <div className="flex bg-accent/10 p-1">
+                      {['percentage', 'fixed', 'bogo', 'shipping'].map(t => (
                         <button key={t} onClick={() => setDiscountData({...discountData, discountType: t as any})} className={`flex-1 py-3 text-[9px] font-bold uppercase tracking-widest transition-all ${discountData.discountType === t ? 'bg-gold text-paper' : 'text-muted hover:text-ink'}`}>
-                           {t === 'bogo' ? 'Product Combo' : t}
+                           {t === 'bogo' ? 'Product Combo' : t === 'shipping' ? 'Free Shipping' : t}
                         </button>
                       ))}
                    </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
-                   <div className="space-y-2">
-                      <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Incentive Value</label>
-                      <input type="number" placeholder="0" value={discountData.discountValue} onChange={(e) => setDiscountData({...discountData, discountValue: e.target.value})} className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none" />
-                   </div>
-                   <div className="flex items-end pb-5 text-[10px] font-bold text-muted">
-                      {discountData.discountType === 'percentage' ? '%' : discountData.discountType === 'fixed' ? storeSettings.currency : 'OFF SECOND ITEM'}
-                   </div>
-                </div>
+                {discountData.discountType !== 'shipping' && (
+                  <div className="grid grid-cols-2 gap-4">
+                     <div className="space-y-2">
+                        <label className="text-[10px] uppercase text-muted font-bold tracking-widest">Incentive Value</label>
+                        <input type="number" placeholder="0" value={discountData.discountValue} onChange={(e) => setDiscountData({...discountData, discountValue: e.target.value})} className="w-full bg-accent/10 p-5 text-xs font-bold tracking-widest outline-none" />
+                     </div>
+                     <div className="flex items-end pb-5 text-[10px] font-bold text-muted">
+                        {discountData.discountType === 'percentage' ? '%' : discountData.discountType === 'fixed' ? storeSettings.currency : '% OFF SECOND ITEM'}
+                     </div>
+                  </div>
+                )}
              </div>
            ) : (
              <div className="space-y-6">
@@ -2227,7 +2229,7 @@ const PaymentTab = () => {
                           </span>
                        </td>
                        <td className="px-8 py-6 text-[11px] font-bold">
-                          {c.discountType === 'percentage' ? `${c.discountValue}% OFF` : c.discountType === 'fixed' ? `${formatPrice(c.discountValue)} OFF` : 'COMBO DISCOUNT'}
+                          {c.discountType === 'percentage' ? `${c.discountValue}% OFF` : c.discountType === 'fixed' ? `${formatPrice(c.discountValue)} OFF` : c.discountType === 'shipping' ? 'FREE SHIPPING' : `${c.discountValue}% OFF COMBO`}
                        </td>
                        <td className="px-8 py-6 uppercase text-[9px] font-bold text-muted tracking-widest">
                           {c.discountType === 'bogo' ? 'Conditional Product Logic' : `Threshold: Min ${formatPrice(c.minPurchase)}`}

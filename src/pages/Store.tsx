@@ -38,7 +38,7 @@ export const Store: React.FC<StoreProps> = ({ onProductClick }) => {
           <img 
             src={storeSettings.heroBannerUrl} 
             alt="Editorial Lash Hero"
-            className="w-full h-full object-cover translate-x-[200px] md:translate-x-0"
+            className="w-full h-full object-cover object-[75%_center] md:object-center"
             referrerPolicy="no-referrer"
           />
           <div className="absolute inset-0 bg-black/[0.65]" />

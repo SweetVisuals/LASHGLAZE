@@ -148,7 +148,7 @@ export interface TaxRule {
 export interface Coupon {
   id: string;
   code: string;
-  discountType: 'percentage' | 'fixed' | 'bogo';
+  discountType: 'percentage' | 'fixed' | 'bogo' | 'shipping';
   discountValue: number;
   minPurchase: number;
   requiredProductId?: string;
