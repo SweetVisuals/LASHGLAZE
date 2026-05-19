@@ -23,19 +23,23 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
   const [activeImage, setActiveImage] = useState(0);
 
   const variants = (product?.variants as any) || {};
-  const colors: string[] = variants.colors || [];
-  const sizes: string[] = variants.sizes || [];
-  const styles: string[] = variants.styles || [];
+  const rawColors: string[] = variants.colors || [];
+  const rawSizes: string[] = variants.sizes || [];
+  const rawStyles: string[] = variants.styles || [];
 
-  const [selectedColor, setSelectedColor] = useState<string | undefined>(variants.defaultColor || (colors.length > 0 ? colors[0] : undefined));
-  const [selectedSize, setSelectedSize] = useState<string | undefined>(variants.defaultSize || (sizes.length > 0 ? sizes[0] : undefined));
-  const [selectedStyle, setSelectedStyle] = useState<string | undefined>(variants.defaultStyle || (styles.length > 0 ? styles[0] : undefined));
+  const colors = [...rawColors].sort((a, b) => a === variants.defaultColor ? -1 : b === variants.defaultColor ? 1 : 0);
+  const sizes = [...rawSizes].sort((a, b) => a === variants.defaultSize ? -1 : b === variants.defaultSize ? 1 : 0);
+  const styles = [...rawStyles].sort((a, b) => a === variants.defaultStyle ? -1 : b === variants.defaultStyle ? 1 : 0);
+
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(undefined);
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(undefined);
+  const [selectedStyle, setSelectedStyle] = useState<string | undefined>(undefined);
 
   React.useEffect(() => {
     setSelectedColor(variants.defaultColor || (colors.length > 0 ? colors[0] : undefined));
     setSelectedSize(variants.defaultSize || (sizes.length > 0 ? sizes[0] : undefined));
     setSelectedStyle(variants.defaultStyle || (styles.length > 0 ? styles[0] : undefined));
-  }, [productId, product, variants.defaultColor, variants.defaultSize, variants.defaultStyle, colors, sizes, styles]);
+  }, [product?.id]);
 
   if (!product) return null;
 
@@ -131,9 +135,9 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
                <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-                      <span>Aura Editorial</span>
+                      <span>Releases</span>
                       <span className="w-1 h-1 bg-accent rounded-full" />
-                      <span>Drop 001</span>
+                      <span>DROP 01</span>
                     </div>
                     {isPreOrderActive ? (
                        <span className="bg-gold text-paper px-3 py-1 text-[10px] font-bold uppercase tracking-widest shadow-sm w-fit">
