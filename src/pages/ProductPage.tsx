@@ -21,11 +21,9 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
 
-  if (!product) return null;
-
-  const colors = product.variants?.colors || [];
-  const sizes = product.variants?.sizes || [];
-  const styles = product.variants?.styles || [];
+  const colors = product?.variants?.colors || [];
+  const sizes = product?.variants?.sizes || [];
+  const styles = product?.variants?.styles || [];
 
   const [selectedColor, setSelectedColor] = useState<string | undefined>(colors[0]);
   const [selectedSize, setSelectedSize] = useState<string | undefined>(sizes[0]);
@@ -35,7 +33,9 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
     setSelectedColor(colors[0]);
     setSelectedSize(sizes[0]);
     setSelectedStyle(styles[0]);
-  }, [productId, product]);
+  }, [productId, product, colors, sizes, styles]);
+
+  if (!product) return null;
 
   const gallery = product.gallery && product.gallery.length > 0 ? product.gallery : [product.image];
 
