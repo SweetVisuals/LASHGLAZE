@@ -226,9 +226,18 @@ export const Header: React.FC<HeaderProps> = ({ onNavigate, onAdminClick, onCart
             </nav>
             
             <div className="mt-auto pt-10 flex flex-col gap-6 text-xs uppercase tracking-widest font-bold text-topbarText/60">
-               <div className="flex justify-between items-center bg-topbarText/5 p-4 rounded-none">
-                  <span>Germany | EUR €</span>
-                  <div className="w-1.5 h-1.5 bg-gold" />
+               <div className="flex flex-col gap-2 bg-topbarText/5 p-4 rounded-none">
+                 <span className="text-[10px] mb-2 opacity-50">Select Currency</span>
+                 {currencies.map(c => (
+                   <button 
+                     key={c.symbol}
+                     onClick={() => handleCurrencyChange(c.symbol)}
+                     className={`flex justify-between items-center p-3 text-left transition-colors ${storeSettings.currency === c.symbol ? 'bg-topbarText/10 text-topbarText' : 'hover:bg-topbarText/10'}`}
+                   >
+                     <span>{c.label}</span>
+                     {storeSettings.currency === c.symbol && <div className="w-1.5 h-1.5 bg-gold rounded-full" />}
+                   </button>
+                 ))}
                </div>
                {isAdmin && (
                  <button onClick={() => { onAdminClick(); setIsMenuOpen(false); }} className="text-center w-full py-5 bg-gold text-paper text-[10px] tracking-[0.2em] rounded-none shadow-xl">
