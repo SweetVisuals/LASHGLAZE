@@ -132,7 +132,6 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
     { id: 'customers', label: 'Customers', icon: Users },
     { id: 'policies', label: 'Policies', icon: FileText },
     { id: 'settings', label: 'Settings', icon: Settings },
-    { id: 'emails', label: 'Emails', icon: Mail },
     { id: 'analytics', label: 'Ads Analytics', icon: Activity },
   ];
 
@@ -269,7 +268,6 @@ export const AdminDashboard: React.FC<{ onNavigateBack: () => void }> = ({ onNav
               {activeTab === 'design' && <DesignTab />}
               {activeTab === 'policies' && <PoliciesTab />}
               {activeTab === 'settings' && <SettingsTab />}
-              {activeTab === 'emails' && <EmailWizardTab />}
               {activeTab === 'analytics' && <AdsAnalyticsTab orders={orders} />}
             </motion.div>
           </AnimatePresence>
@@ -805,6 +803,9 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
     colors: initialData?.variants?.colors || [] as string[],
     sizes: initialData?.variants?.sizes || [] as string[],
     styles: initialData?.variants?.styles || [] as string[],
+    defaultColor: initialData?.variants?.defaultColor || '',
+    defaultSize: initialData?.variants?.defaultSize || '',
+    defaultStyle: initialData?.variants?.defaultStyle || '',
     preOrderEnabled: initialData?.preOrderEnabled || false,
     preOrderEndsAt: initialData?.preOrderEndsAt ? new Date(initialData.preOrderEndsAt).toISOString().slice(0, 16) : '',
     preOrderPrice: initialData?.preOrderPrice?.toString() || '',
@@ -881,6 +882,9 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
         colors: data.colorVariantsEnabled ? finalColors : undefined,
         sizes: data.sizeVariantsEnabled ? finalSizes : undefined,
         styles: data.styleVariantsEnabled ? finalStyles : undefined,
+        defaultColor: data.colorVariantsEnabled ? data.defaultColor : undefined,
+        defaultSize: data.sizeVariantsEnabled ? data.defaultSize : undefined,
+        defaultStyle: data.styleVariantsEnabled ? data.defaultStyle : undefined,
       },
       preOrderEnabled: data.preOrderEnabled,
       preOrderEndsAt: data.preOrderEndsAt || undefined,
@@ -1071,10 +1075,19 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                              {data.colors.map(c => (
                                <span key={c} className="px-2 py-1 bg-accent/10  text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
                                   {c}
-                                  <button onClick={() => setData({...data, colors: data.colors.filter(v => v !== c)})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
+                                  <button onClick={() => setData({...data, colors: data.colors.filter(v => v !== c), defaultColor: data.defaultColor === c ? '' : data.defaultColor})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
                                </span>
                              ))}
                           </div>
+                          {data.colors.length > 0 && (
+                            <div className="pt-2 border-t border-white/5">
+                              <label className="text-[9px] uppercase font-bold text-muted mb-2 block">Default Color</label>
+                              <select value={data.defaultColor} onChange={e => setData({...data, defaultColor: e.target.value})} className="w-full bg-paper p-2 text-[10px] font-bold uppercase text-ink outline-none focus:border-gold border border-transparent rounded">
+                                <option value="">Auto (First option)</option>
+                                {data.colors.map(c => <option key={c} value={c}>{c}</option>)}
+                              </select>
+                            </div>
+                          )}
                        </div>
                     )}
 
@@ -1094,10 +1107,19 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                              {data.sizes.map(s => (
                                <span key={s} className="px-2 py-1 bg-accent/10  text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
                                   {s}
-                                  <button onClick={() => setData({...data, sizes: data.sizes.filter(v => v !== s)})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
+                                  <button onClick={() => setData({...data, sizes: data.sizes.filter(v => v !== s), defaultSize: data.defaultSize === s ? '' : data.defaultSize})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
                                </span>
                              ))}
                           </div>
+                          {data.sizes.length > 0 && (
+                            <div className="pt-2 border-t border-white/5">
+                              <label className="text-[9px] uppercase font-bold text-muted mb-2 block">Default Size</label>
+                              <select value={data.defaultSize} onChange={e => setData({...data, defaultSize: e.target.value})} className="w-full bg-paper p-2 text-[10px] font-bold uppercase text-ink outline-none focus:border-gold border border-transparent rounded">
+                                <option value="">Auto (First option)</option>
+                                {data.sizes.map(s => <option key={s} value={s}>{s}</option>)}
+                              </select>
+                            </div>
+                          )}
                        </div>
                     )}
 
@@ -1117,10 +1139,19 @@ const AddProductWizard = ({ onSave, onCancel, initialData }: { onSave: (p: Produ
                              {data.styles.map(st => (
                                <span key={st} className="px-2 py-1 bg-accent/10  text-[9px] font-bold flex items-center gap-2 text-gold uppercase">
                                   {st}
-                                  <button onClick={() => setData({...data, styles: data.styles.filter(v => v !== st)})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
+                                  <button onClick={() => setData({...data, styles: data.styles.filter(v => v !== st), defaultStyle: data.defaultStyle === st ? '' : data.defaultStyle})} className="hover:text-ink transition-colors"><Plus size={10} className="rotate-45" /></button>
                                </span>
                              ))}
                           </div>
+                          {data.styles.length > 0 && (
+                            <div className="pt-2 border-t border-white/5">
+                              <label className="text-[9px] uppercase font-bold text-muted mb-2 block">Default Style</label>
+                              <select value={data.defaultStyle} onChange={e => setData({...data, defaultStyle: e.target.value})} className="w-full bg-paper p-2 text-[10px] font-bold uppercase text-ink outline-none focus:border-gold border border-transparent rounded">
+                                <option value="">Auto (First option)</option>
+                                {data.styles.map(st => <option key={st} value={st}>{st}</option>)}
+                              </select>
+                            </div>
+                          )}
                        </div>
                     )}
                  </div>

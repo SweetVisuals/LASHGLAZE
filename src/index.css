@@ -184,6 +184,26 @@
     background-color: var(--paper);
     color: var(--ink);
   }
+
+  /* Luxe Scrollbar */
+  .luxe-scrollbar::-webkit-scrollbar {
+    height: 4px;
+    width: 4px;
+  }
+  .luxe-scrollbar::-webkit-scrollbar-track {
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+  .luxe-scrollbar::-webkit-scrollbar-thumb {
+    background: var(--gold);
+    border-radius: 0;
+  }
+  .luxe-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--gold) 80%, black);
+  }
+  .luxe-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) color-mix(in srgb, var(--accent) 20%, transparent);
+  }
 }
 
 /* Rule: no front end borders */

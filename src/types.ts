@@ -192,3 +192,16 @@ export interface ShowcaseReview {
   createdAt?: string;
 }
 
+export interface ProductReview {
+  id: string;
+  product_id: string;
+  profile_id: string;
+  rating: number;
+  review_text: string | null;
+  created_at: string;
+  profiles?: {
+    full_name: string;
+    email: string;
+  };
+}
+

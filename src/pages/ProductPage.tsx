@@ -8,6 +8,7 @@ import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 import { Minus, Plus, Share2, Info, ChevronLeft, Clock, ShieldCheck, Truck, Sparkles, Lock } from 'lucide-react';
 import { CountdownTimer } from '../components/CountdownTimer';
+import { ProductReviews } from '../components/ProductReviews';
 
 interface ProductPageProps {
   productId: string;
@@ -16,24 +17,25 @@ interface ProductPageProps {
 }
 
 export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onCheckout }) => {
-  const { products, addToCart, dropExpiry, isDropActive, formatPrice, storeSettings } = useApp();
+  const { products, addToCart, dropExpiry, isDropActive, formatPrice, storeSettings, showcaseReviews } = useApp();
   const product = products.find(p => p.id === productId || p.slug === productId);
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
 
-  const colors = product?.variants?.colors || [];
-  const sizes = product?.variants?.sizes || [];
-  const styles = product?.variants?.styles || [];
+  const variants = (product?.variants as any) || {};
+  const colors: string[] = variants.colors || [];
+  const sizes: string[] = variants.sizes || [];
+  const styles: string[] = variants.styles || [];
 
-  const [selectedColor, setSelectedColor] = useState<string | undefined>(colors[0]);
-  const [selectedSize, setSelectedSize] = useState<string | undefined>(sizes[0]);
-  const [selectedStyle, setSelectedStyle] = useState<string | undefined>(styles[0]);
+  const [selectedColor, setSelectedColor] = useState<string | undefined>(variants.defaultColor || (colors.length > 0 ? colors[0] : undefined));
+  const [selectedSize, setSelectedSize] = useState<string | undefined>(variants.defaultSize || (sizes.length > 0 ? sizes[0] : undefined));
+  const [selectedStyle, setSelectedStyle] = useState<string | undefined>(variants.defaultStyle || (styles.length > 0 ? styles[0] : undefined));
 
   React.useEffect(() => {
-    setSelectedColor(colors[0]);
-    setSelectedSize(sizes[0]);
-    setSelectedStyle(styles[0]);
-  }, [productId, product, colors, sizes, styles]);
+    setSelectedColor(variants.defaultColor || (colors.length > 0 ? colors[0] : undefined));
+    setSelectedSize(variants.defaultSize || (sizes.length > 0 ? sizes[0] : undefined));
+    setSelectedStyle(variants.defaultStyle || (styles.length > 0 ? styles[0] : undefined));
+  }, [productId, product, variants.defaultColor, variants.defaultSize, variants.defaultStyle, colors, sizes, styles]);
 
   if (!product) return null;
 
@@ -51,6 +53,13 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
     ? product.preOrderPrice 
     : (product.salePrice && product.salePrice < product.price ? product.salePrice : product.price);
   const isAvailable = isDropActive || isPreOrderActive || isLimitedTimeActive || isReserveOrder;
+
+  const allVariantsSelected = 
+    (!colors.length || selectedColor) &&
+    (!sizes.length || selectedSize) &&
+    (!styles.length || selectedStyle);
+
+  const canAddToCart = isAvailable && allVariantsSelected;
 
   // Which timer to show?
   const activeTimerTarget = isPreOrderActive ? preOrderEndsAt : (isLimitedTimeActive ? limitedTimeEndsAt : null);
@@ -72,10 +81,10 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
           </button>
         </div>
 
-        <div className="lg:grid lg:grid-cols-2 lg:gap-32 pb-32">
+        <div className="flex flex-col lg:grid lg:grid-cols-2 lg:gap-32 pb-32">
           
           {/* VISUALS: Simple Stack or Gallery */}
-          <div className="space-y-8">
+          <div className="space-y-8 order-4 lg:order-none">
             <motion.div 
               className="aspect-square bg-accent/5 overflow-hidden rounded-none shadow-[0_32px_64px_-16px_rgba(0,0,0,0.6)]"
             >
@@ -95,7 +104,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
                     onClick={() => setActiveImage(idx)}
                     className={`aspect-square rounded-none overflow-hidden transition-all duration-500 relative group ${
                       activeImage === idx 
-                        ? 'opacity-100 ring-1 ring-white/20 scale-[0.98]' 
+                        ? 'opacity-100 ring-1 ring-gold/30 scale-[0.98]' 
                         : 'opacity-40 hover:opacity-80'
                     }`}
                   >
@@ -107,7 +116,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
                     {activeImage === idx && (
                       <motion.div 
                         layoutId="active-indicator"
-                        className="absolute inset-x-0 bottom-0 h-1 bg-white"
+                        className="absolute inset-x-0 bottom-0 h-1 bg-gold"
                       />
                     )}
                   </button>
@@ -117,34 +126,34 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
           </div>
 
           {/* DETAILS: Rethought & Simplified */}
-          <div className="mt-16 lg:mt-0 space-y-12">
-            <div className="space-y-6">
+          <div className="mt-8 lg:mt-0 space-y-12 max-lg:contents">
+            <div className="space-y-6 order-1 lg:order-none max-lg:mb-8">
                <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
-                    <span>Aura Editorial</span>
-                    <span className="w-1 h-1 bg-accent rounded-full" />
-                    <span>Drop 001</span>
-                  </div>
-                  <h1 className="font-sans text-3xl lg:text-5xl font-bold tracking-tight text-ink flex flex-col lg:flex-row lg:items-center">
-                    {product.name}
-                    {isPreOrderActive && (
-                       <span className="lg:ml-4 mt-2 lg:mt-0 bg-gold text-paper px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg w-fit">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.2em] text-muted">
+                      <span>Aura Editorial</span>
+                      <span className="w-1 h-1 bg-accent rounded-full" />
+                      <span>Drop 001</span>
+                    </div>
+                    {isPreOrderActive ? (
+                       <span className="bg-gold text-paper px-3 py-1 text-[10px] font-bold uppercase tracking-widest shadow-sm w-fit">
                          Pre-order
                        </span>
-                    )}
-                    {isLimitedTimeActive && (
+                    ) : isReserveOrder ? (
+                       <span className="bg-blue-500 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest shadow-sm w-fit">
+                         Reserve Order
+                       </span>
+                    ) : isLimitedTimeActive ? (
                        <span 
-                         className="lg:ml-auto mt-2 lg:mt-0 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg animate-pulse w-fit border-none"
+                         className="text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest shadow-sm animate-pulse w-fit"
                          style={{ backgroundColor: storeSettings.colors.limitedTime }}
                        >
                          Limited Time
                        </span>
-                    )}
-                    {isReserveOrder && (
-                       <span className="lg:ml-4 mt-2 lg:mt-0 bg-blue-500 text-white px-3 py-1 text-[10px] font-bold uppercase tracking-widest align-middle shadow-lg w-fit">
-                         Reserve Order
-                       </span>
-                    )}
+                    ) : null}
+                  </div>
+                  <h1 className="font-sans text-3xl lg:text-5xl font-bold tracking-tight text-ink">
+                    {product.name}
                   </h1>
                </div>
 
@@ -162,7 +171,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
 
              {/* Integrated Multi-Mode Timer Box */}
              <div 
-               className="p-6 space-y-4 rounded-none shadow-none transition-colors duration-500 border-none"
+               className="p-6 space-y-4 rounded-none shadow-none transition-colors duration-500 border-none order-2 lg:order-none max-lg:mb-8"
                style={{ 
                  backgroundColor: isPreOrderActive 
                    ? 'color-mix(in srgb, var(--preOrder) 10%, transparent)' 
@@ -190,7 +199,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
                 </div>
              </div>
 
-            <div className="space-y-10">
+            <div className="space-y-10 order-5 lg:order-none max-lg:mt-8">
                {/* Variant Selectors */}
                {(colors.length > 0 || sizes.length > 0 || styles.length > 0) && (
                  <div className="space-y-8 pt-4">
@@ -282,21 +291,22 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
 
                   {/* Row 2: Add to Cart Button */}
                   <button 
-                     disabled={!isAvailable}
+                     disabled={!canAddToCart}
                      onClick={() => {
-                       if (isAvailable) {
+                       if (canAddToCart) {
                          addToCart(product, quantity, selectedColor, selectedSize, selectedStyle);
                          onCheckout();
                        }
                      }}
                      className={`w-full py-5 text-[10px] font-extrabold uppercase tracking-[0.4em] transition-all relative overflow-hidden group rounded-none shadow-xl ${
-                       isAvailable
+                       canAddToCart
                          ? 'bg-ink text-paper hover:bg-gold hover:text-ink shadow-lg shadow-gold/10' 
                          : 'bg-black/5 text-muted cursor-not-allowed'
                      }`}
                   >
                      <span className="relative z-10 border-none">
-                       {isPreOrderActive 
+                       {!allVariantsSelected ? 'Select variant' :
+                        isPreOrderActive 
                          ? 'Pre-order now' 
                          : isReserveOrder 
                            ? 'Reserve order' 
@@ -387,7 +397,7 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
             </div>
 
             {/* Product Desc - More refined */}
-            <div className="pt-12 space-y-6">
+            <div className="pt-12 space-y-6 order-6 lg:order-none max-lg:mt-8">
                <div className="space-y-3">
                   <h4 className="text-[8px] uppercase font-bold tracking-[0.4em] text-muted">The Aesthetic</h4>
                   <p className="text-xs leading-relaxed font-serif italic text-muted max-w-lg">
@@ -408,6 +418,68 @@ export const ProductPage: React.FC<ProductPageProps> = ({ productId, onBack, onC
             </div>
           </div>
         </div>
+
+        {/* Product Reviews */}
+        <div className="pt-16 pb-8 border-t border-accent/10">
+          <ProductReviews productId={product.id} />
+        </div>
+
+        {/* Customer Picture Showcase */}
+        {showcaseReviews && showcaseReviews.length > 0 && (
+          <div className="pt-16 pb-8">
+             <div className="flex flex-col items-center mb-12 text-center">
+               <h2 className="font-serif text-3xl md:text-4xl text-ink italic mb-4 tracking-tight">Customer Showcase</h2>
+               <p className="text-[10px] text-muted uppercase tracking-[0.5em] font-bold opacity-80">Curated Looks</p>
+             </div>
+             {/* Mobile Carousel / Desktop Grid */}
+             <div className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-8 md:pb-0 luxe-scrollbar md:grid md:grid-cols-4">
+               {showcaseReviews.map((review, idx) => {
+                 const imageUrl = review.imageUrl || review.image_url;
+                 const linkUrl = review.destinationUrl || review.destination_url;
+                 
+                 const imageElement = (
+                   <motion.div 
+                     initial={{ opacity: 0, y: 30 }}
+                     whileInView={{ opacity: 1, y: 0 }}
+                     transition={{ delay: idx * 0.15, duration: 0.8 }}
+                     viewport={{ once: true }}
+                     className="group relative aspect-[3/4] overflow-hidden bg-accent/10 cursor-pointer h-full"
+                   >
+                      <img 
+                        src={imageUrl} 
+                        alt="Customer Showcase Selection" 
+                        className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-ink/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                   </motion.div>
+                 );
+
+                 if (linkUrl) {
+                   const isExternal = linkUrl.startsWith('http') || linkUrl.startsWith('//');
+                   return (
+                     <a 
+                       key={review.id} 
+                       href={linkUrl} 
+                       target={isExternal ? "_blank" : undefined}
+                       rel={isExternal ? "noopener noreferrer" : undefined}
+                       className="block w-[75vw] flex-none snap-center md:w-auto md:flex-initial"
+                     >
+                       {imageElement}
+                     </a>
+                   );
+                 }
+
+                 return (
+                   <div key={review.id} className="block w-[75vw] flex-none snap-center md:w-auto md:flex-initial">
+                     {imageElement}
+                   </div>
+                 );
+               })}
+             </div>
+          </div>
+        )}
+
       </div>
     </div>
   );
